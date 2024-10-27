@@ -3,6 +3,7 @@
 #include "winsock2.h"
 #include <QDebug>
 
+
 PackageInfo::PackageInfo()
 {
     //自定义类型想在槽函数中传递需注册
@@ -14,13 +15,13 @@ PackageInfo::PackageInfo()
 void PackageInfo::setInfo(QString info){
     this->info = info;
 }
-void PackageInfo::setPointer(const u_char *package,int size){
+void PackageInfo::setPointer(const unsigned char *package,int size){
     //不可以直接赋值，需要显示申请内存
-    this->package = (u_char*)malloc(size);
+    this->package = (unsigned char*)malloc(size);
     //需要把数据存储在内存里，方便后续操作
     memcpy((char*)(this->package),package,size);
 }
-void PackageInfo::setDataLength(u_int data_length){
+void PackageInfo::setDataLength(unsigned int data_length){
     this->data_length = data_length;
 }
 void PackageInfo::setTimeStamp(QString timeStamp){
@@ -72,7 +73,7 @@ QString PackageInfo::getPackageType(){
 QString PackageInfo::getSourMac(){
     ether_header *eth;
     eth = (ether_header*)package;
-    u_char* addr = eth->sour_add;
+    unsigned char* addr = eth->sour_add;
     if(addr){
         QString res = byteToString(addr,1) + ":";
         res += byteToString(addr+1,1) + ":";
@@ -90,7 +91,7 @@ QString PackageInfo::getSourMac(){
 QString PackageInfo::getDesMac(){
     ether_header *eth;
     eth = (ether_header*)package;
-    u_char* addr = eth->des_add;
+    unsigned char* addr = eth->des_add;
     if(addr){
         QString res = byteToString(addr,1) + ":";
         res += byteToString(addr+1,1) + ":";
@@ -121,26 +122,61 @@ QString PackageInfo::getDesIp(){
     return QString(inet_ntoa(desIp.sin_addr));
 }
 
+QString PackageInfo::getSourIpv6(){
+    ipv6_header* ip;
+    ip = (ipv6_header*)(package + 14);
+    QString sour_addr = QString::asprintf("%X:%X:%X:%X:%X:%X:%X:%X",
+                                          ip->sour_addr.a1,
+                                          ip->sour_addr.a2,
+                                          ip->sour_addr.a3,
+                                          ip->sour_addr.a4,
+                                          ip->sour_addr.a5,
+                                          ip->sour_addr.a6,
+                                          ip->sour_addr.a7,
+                                          ip->sour_addr.a8);
+    return sour_addr;
+}
+
+QString PackageInfo::getDesIpv6(){
+    ipv6_header* ip;
+    ip = (ipv6_header*)(package + 14);
+    QString des_addr = QString::asprintf("%X:%X:%X:%X:%X:%X:%X:%X",
+                                          ip->des_addr.a1,
+                                          ip->des_addr.a2,
+                                          ip->des_addr.a3,
+                                          ip->des_addr.a4,
+                                          ip->des_addr.a5,
+                                          ip->des_addr.a6,
+                                          ip->des_addr.a7,
+                                          ip->des_addr.a8);
+    return des_addr;
+}
+
 QString PackageInfo::getSourAdd(){
     if(this->package_type == 1) return this->getSourMac();
+    else if(this->package_type == 8) return getSourIpv6();
     else return this->getSourIp();
 }
 
 QString PackageInfo::getDesAdd(){
     if(this->package_type == 1) return this->getDesMac();
+    else if(this->package_type == 8) return getDesIpv6();
     else return this->getDesIp();
 }
 
 QString PackageInfo::getMacType(){
     ether_header* eth;
     eth = (ether_header*)package;
-    u_short type = ntohs(eth->type);
+    unsigned short type = ntohs(eth->type);
     //ipv4
     if(type == 0x0800){
         return "IPv4(0x0800)";
     }
     else if(type == 0x0806){
         return "ARP(0x0806)";
+    }
+    else if(type == 0x086DD){
+        return "IPv6(0x86DD)";
     }
     else return "";
 }
@@ -179,7 +215,67 @@ QString PackageInfo::getIpTtl(){
     return res;
 }
 
-QString PackageInfo::byteToString(u_char *string, int size){
+QString PackageInfo::getFlags(){
+    ip_header*ip = (ip_header*)(package+14);
+    QString res = QString::number((ntohs(ip->FlagsAndOffet)& 0xe000) >> 8,16);
+    return res;
+}
+
+QString PackageInfo::getFrag(){
+    ip_header*ip = (ip_header*)(package+14);
+    QString res = QString::number(ntohs(ip->FlagsAndOffet) & 0x1FFF);
+    return res;
+}
+
+QString PackageInfo::getIpChecksum(){
+    ip_header*ip = (ip_header*)(package+14);
+    QString res = QString::number(ntohs(ip->checksum),16);
+    qDebug()<<res;
+    return res;
+}
+
+QString PackageInfo::getSourcePort(){
+    tcp_header* tcp = (tcp_header*)(package+14+20);
+    int port = ntohs(tcp->sour_port);
+    if(port == 443) return "443(https)";
+    QString res = QString::number(port);
+    return res;
+}
+
+QString PackageInfo::getDesPort(){
+    tcp_header* tcp = (tcp_header*)(package+14+20);
+    int port = ntohs(tcp->des_port);
+    if(port == 443) return "443(https)";
+    QString res = QString::number(port);
+    return res;
+}
+
+QString PackageInfo::getTcpSeq(){
+    tcp_header* tcp = (tcp_header*)(package+14+20);
+    QString res = QString::number(ntohl(tcp->seq));
+    return res;
+}
+
+QString PackageInfo::getTcpAck(){
+    tcp_header* tcp = (tcp_header*)(package+14+20);
+    QString res = QString::number(ntohl(tcp->ack));
+    return res;
+}
+
+QString PackageInfo::getTcpHeaderLength(){
+    tcp_header* tcp = (tcp_header*)(package+14+20);
+    int length = (tcp->headLength >> 4);
+    QString res = QString::number(length*4) + " bytes";
+    return res;
+}
+
+QString PackageInfo::getTcpFlags(){
+    tcp_header* tcp = (tcp_header*)(package+14+20);
+    QString res = QString::number(tcp->flags,16);;
+    return res;
+}
+
+QString PackageInfo::byteToString(unsigned char *string, int size){
     QString res = "";
     for(int i=0;i<size;i++){
         //字节高位
@@ -201,5 +297,13 @@ QString PackageInfo::byteToString(u_char *string, int size){
         res.append(one);
         res.append(two);
     }
+    return res;
+}
+
+//转16进制
+QString PackageInfo::unsignedShortToString(unsigned short value) {
+    QString res = "";
+    // 设置输出格式为十六进制并填充为两位
+    res += QString::number(value, 16).toUpper().rightJustified(4, '0');
     return res;
 }

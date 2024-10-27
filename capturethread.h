@@ -11,23 +11,24 @@ class CaptureThread:public QThread
 
 public:
     CaptureThread();
-    static QString byteToString(u_char* string,int size);
+    static QString byteToString(unsigned char* string,int size);
     void run() override;
     //打开设备描述符的地址
     bool setPointer(pcap_t *pointer);
     void setFlag();
     void resetFlag();
     //19:00
-    int handleEthernerPackage(const u_char *data,QString &type);
-    int handleIpPackage(const u_char* data,int &ipPackage);//ipPackage为实际承载多少报文
-    int handleTcpPackage(const u_char* data,QString &info,int ipPackage);
+    int handleEthernerPackage(const unsigned char *data,QString &type);
+    int handleIpPackage(const unsigned char* data,int &ipPackage);//ipPackage为实际承载多少报文
+    QString handleIpv6Package(const unsigned char* data);
+    int handleTcpPackage(const unsigned char* data,QString &info,int ipPackage);
     //udp解析dns
     //udp包含数据长度，不需要ipPackage
-    int handleUdpPackage(const u_char* data,QString &info);
+    int handleUdpPackage(const unsigned char* data,QString &info);
     //arp
-    QString handleArpPackage(const u_char* data);
-    QString handleDnsPackage(const u_char* data);
-    QString handleIcmpPackage(const u_char* data);
+    QString handleArpPackage(const unsigned char* data);
+    QString handleDnsPackage(const unsigned char* data);
+    QString handleIcmpPackage(const unsigned char* data);
 
 signals:
     //线程间发送数据

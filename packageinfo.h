@@ -88,6 +88,33 @@ typedef struct ip_header{
 
 }ip_header;
 
+typedef struct ipv6_address
+{
+    unsigned short a1;
+    unsigned short a2;
+    unsigned short a3;
+    unsigned short a4;
+    unsigned short a5;
+    unsigned short a6;
+    unsigned short a7;
+    unsigned short a8;
+}ipv6_address;
+
+//ipv6
+typedef struct ipv6_header{
+    //不满一个字节的按一个字节算
+    unsigned int ver_tc_fl;
+    unsigned short len;
+    unsigned char next_header;
+    unsigned char hop_limit;
+    ipv6_address sour_addr;
+    ipv6_address des_addr;
+
+}ipv6_header;
+
+
+
+
 //dns
 //16bit identification    16bit flags(1b QR 1响应2查询||4b op 查询与响应的类型……）
 //16bit question询问的数量  16bit Answer 应答数量
@@ -115,6 +142,7 @@ public:
 
     //字节数据转换为16进制
     static QString byteToString(unsigned char* string,int size);
+    static QString unsignedShortToString(unsigned short value);
 
     void setDataLength(unsigned int data_length);
     void setTimeStamp(QString timeStamp);
@@ -134,14 +162,25 @@ public:
     QString getDesMac();
     QString getSourIp();
     QString getDesIp();
+    QString getSourIpv6();
+    QString getDesIpv6();
 
     //为树形结构编写的辅助函数
     QString getMacType();
     QString getIpVersion();
     QString getIpHeaderLen();
+    QString getIpChecksum();
     QString getIpTos();
     QString getIpId();
     QString getIpTtl();
+    QString getFlags();
+    QString getFrag();
+    QString getSourcePort();
+    QString getDesPort();
+    QString getTcpAck();
+    QString getTcpSeq();
+    QString getTcpHeaderLength();
+    QString getTcpFlags();
 private:
     unsigned int data_length;
     QString timestamp;

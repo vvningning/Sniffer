@@ -45,7 +45,7 @@ void CaptureThread::run(){
                 PackageInfo packageInfo;
                 packageInfo.len = header->len;
 
-                u_int len = header->len;
+                unsigned int len = header->len;
                 packageInfo.setInfo(info);
                 packageInfo.setDataLength(len);
                 packageInfo.setTimeStamp(timeString);
@@ -57,9 +57,9 @@ void CaptureThread::run(){
     }
 }
 
-int CaptureThread::handleEthernerPackage(const u_char *data, QString &info){
+int CaptureThread::handleEthernerPackage(const unsigned char *data, QString &info){
     ether_header * eth;
-    u_short content_type;
+    unsigned short content_type;
     eth = (ether_header *)data;
     //一个16位数由网络字节顺序转换为主机字节顺序
     //数据包类型
@@ -87,7 +87,7 @@ int CaptureThread::handleEthernerPackage(const u_char *data, QString &info){
     }
     if(content_type == 0x86DD){
         //上层封装ipv6
-        info = "ipv6";
+        info = handleIpv6Package(data);
         return 8;
     }
     if(content_type == 0x0806){
@@ -97,7 +97,7 @@ int CaptureThread::handleEthernerPackage(const u_char *data, QString &info){
     }
     return 0;
 }
-int CaptureThread::handleIpPackage(const u_char *data, int &ipPackage){
+int CaptureThread::handleIpPackage(const unsigned char *data, int &ipPackage){
     //data指向最开始的数据包，需要跳过mac,即跳过14
     ip_header* ip;
     ip = (ip_header*)(data + 14);
@@ -108,15 +108,42 @@ int CaptureThread::handleIpPackage(const u_char *data, int &ipPackage){
     return protocol;
 }
 
-int CaptureThread::handleTcpPackage(const u_char *data, QString &info, int ipPackage){
+QString CaptureThread::handleIpv6Package(const unsigned char *data){
+    //data指向最开始的数据包，需要跳过mac,即跳过14
+    ipv6_header* ip;
+    ip = (ipv6_header*)(data + 14);
+    QString res = "";
+    QString sour_addr = QString::asprintf("%X:%X:%X:%X:%X:%X:%X:%X",
+                                          ip->sour_addr.a1,
+                                          ip->sour_addr.a2,
+                                          ip->sour_addr.a3,
+                                          ip->sour_addr.a4,
+                                          ip->sour_addr.a5,
+                                          ip->sour_addr.a6,
+                                          ip->sour_addr.a7,
+                                          ip->sour_addr.a8);
+    QString des_addr = QString::asprintf("%X:%X:%X:%X:%X:%X:%X:%X",
+                                          ip->des_addr.a1,
+                                          ip->des_addr.a2,
+                                          ip->des_addr.a3,
+                                          ip->des_addr.a4,
+                                          ip->des_addr.a5,
+                                          ip->des_addr.a6,
+                                          ip->des_addr.a7,
+                                          ip->des_addr.a8);
+    res += "ipv6 source addr:"+ sour_addr + " destination addr:"+des_addr;
+    return res;
+}
+
+int CaptureThread::handleTcpPackage(const unsigned char *data, QString &info, int ipPackage){
     tcp_header * tcp;
     //跳过mac和ip
     ip_header* ip;
     ip = (ip_header*)(data + 14);
     int ip_len = ((ip->versionAndHLength)&0x0F)*4;
     tcp = (tcp_header*)(data+14+ip_len);
-    u_short sour_port = ntohs(tcp->sour_port);
-    u_short des_port = ntohs(tcp ->des_port);
+    unsigned short sour_port = ntohs(tcp->sour_port);
+    unsigned short des_port = ntohs(tcp ->des_port);
     QString proSend = "";
     QString proRecei = "";
     int type = 3;
@@ -126,11 +153,11 @@ int CaptureThread::handleTcpPackage(const u_char *data, QString &info, int ipPac
     if(sour_port == 443||des_port == 443){
         if(sour_port==443) proSend = "(https)";
         else proRecei = "(https)";
-        u_char*ssl=(u_char*)(data+14+20+tcpHeaderLength);
-        u_char isTls = (*ssl);
+        unsigned char*ssl=(unsigned char*)(data+14+20+tcpHeaderLength);
+        unsigned char isTls = (*ssl);
         ssl++;
-        u_short* pointer = (u_short*)ssl;
-        u_short version = ntohs(*pointer);
+        unsigned short* pointer = (unsigned short*)ssl;
+        unsigned short version = ntohs(*pointer);
         if(isTls>=20&&isTls<=23&&version>=0x0301&&version<=0x0304){
             type = 6;
             if(isTls==20){
@@ -142,7 +169,7 @@ int CaptureThread::handleTcpPackage(const u_char *data, QString &info, int ipPac
             if(isTls==22){
                 info="Hand shake";
                 ssl+=4;
-                u_char t = (*ssl);
+                unsigned char t = (*ssl);
                 if(t==1){
                     info+="Client Hello";
                 }
@@ -172,9 +199,9 @@ int CaptureThread::handleTcpPackage(const u_char *data, QString &info, int ipPac
         flags = flags.left(flags.length()-1);
         info += "["+flags+"]";
     }
-    u_int seq = ntohl(tcp->seq);
-    u_int ack = ntohl(tcp->ack);
-    u_short windowSize = ntohs(tcp->windowSize);
+    unsigned int seq = ntohl(tcp->seq);
+    unsigned int ack = ntohl(tcp->ack);
+    unsigned short windowSize = ntohs(tcp->windowSize);
     info += " Seq=" + QString::number(seq);
     info += "ACK=" + QString::number(ack);
     info += "win=" + QString::number(windowSize);
@@ -184,15 +211,15 @@ int CaptureThread::handleTcpPackage(const u_char *data, QString &info, int ipPac
 
 }
 
-int CaptureThread::handleUdpPackage(const u_char *data, QString &info){
+int CaptureThread::handleUdpPackage(const unsigned char *data, QString &info){
     udp_header* udp;
     ip_header* ip;
     ip = (ip_header*)(data + 14);
     int ip_len = ((ip->versionAndHLength)&0x0F)*4;
     //跳过mac和ip
     udp = (udp_header*)(data+14+ip_len);
-    u_short sour_port = ntohs(udp->sour_port);
-    u_short des_port = ntohs(udp->des_port);
+    unsigned short sour_port = ntohs(udp->sour_port);
+    unsigned short des_port = ntohs(udp->des_port);
 
     //dns用53端口
     if(sour_port==53||des_port == 53) {
@@ -201,32 +228,32 @@ int CaptureThread::handleUdpPackage(const u_char *data, QString &info){
     }
     else{
         info += QString::number(sour_port) + "->" + QString::number(des_port);
-        u_short dataLength = ntohs(udp->dataLength);
+        unsigned short dataLength = ntohs(udp->dataLength);
         info += "len = "+QString::number(dataLength);
         return 4;
     }
 }
 
-QString CaptureThread::handleArpPackage(const u_char *data){
+QString CaptureThread::handleArpPackage(const unsigned char *data){
     arp_header *arp;
     //arp被封装在mac帧里，与ip同层
     arp = (arp_header*)(data+14);
-    u_short op = ntohs(arp->op_code);
+    unsigned short op = ntohs(arp->op_code);
     QString res = "";
 
-    u_char* sour_ip_add = arp->sour_ip_addr;
+    unsigned char* sour_ip_add = arp->sour_ip_addr;
     QString sourIP = QString::number(*sour_ip_add)+".";
     sourIP += QString::number(*(sour_ip_add+1))+".";
     sourIP += QString::number(*(sour_ip_add+2))+".";
     sourIP += QString::number(*(sour_ip_add+3));
 
-    u_char* des_ip_add = arp->des_ip_addr;
+    unsigned char* des_ip_add = arp->des_ip_addr;
     QString desIP = QString::number(*des_ip_add)+".";
     desIP += QString::number(*(des_ip_add+1))+".";
     desIP += QString::number(*(des_ip_add+2))+".";
     desIP += QString::number(*(des_ip_add+3));
 
-    u_char* sour_eth_add = arp->sour_eth_addr;
+    unsigned char* sour_eth_add = arp->sour_eth_addr;
     QString sourEth = byteToString(sour_eth_add,1)+":";
     sourEth += byteToString((sour_eth_add+1),1)+":";
     sourEth += byteToString((sour_eth_add+2),1)+":";
@@ -245,15 +272,15 @@ QString CaptureThread::handleArpPackage(const u_char *data){
     return res;
 }
 
-QString CaptureThread::handleDnsPackage(const u_char *data){
+QString CaptureThread::handleDnsPackage(const unsigned char *data){
     dns_header* dns;
     //跳过mac ip udp
     ip_header* ip;
     ip = (ip_header*)(data + 14);
     int ip_len = ((ip->versionAndHLength)&0x0F)*4;
     dns = (dns_header*)(data + 14+ip_len+8);
-    u_short identification = ntohs(dns->identification);
-    u_short flags = ntohs(dns->flags);
+    unsigned short identification = ntohs(dns->identification);
+    unsigned short flags = ntohs(dns->flags);
     QString info = "";
     //查询
     if((flags & 0xf800) == 0x0000){
@@ -284,15 +311,15 @@ QString CaptureThread::handleDnsPackage(const u_char *data){
     return info;
 }
 
-QString CaptureThread::handleIcmpPackage(const u_char *data){
+QString CaptureThread::handleIcmpPackage(const unsigned char *data){
     icmp_header* icmp;
     //icmp被封装在ip里
     ip_header* ip;
     ip = (ip_header*)(data + 14);
     int ip_len = ((ip->versionAndHLength)&0x0F)*4;
-    icmp = (icmp_header*)(data + 14+ip_len);
-    u_char type = icmp->type;
-    u_char code = icmp->code;
+    icmp = (icmp_header*)(data + 14 + ip_len);
+    unsigned char type = icmp->type;
+    unsigned char code = icmp->code;
     QString info="";
     if(type==0&&code==0){
         info = "Echo response(ping command response";
@@ -304,7 +331,7 @@ QString CaptureThread::handleIcmpPackage(const u_char *data){
     return info;
 }
 
-QString CaptureThread::byteToString(u_char *string, int size){
+QString CaptureThread::byteToString(unsigned char *string, int size){
     QString res = "";
     for(int i=0;i<size;i++){
         //字节高位

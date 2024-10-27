@@ -20,7 +20,7 @@ public:
     MainWindow(QWidget *parent = nullptr);
     void showNIC();
     int chooseNIC();
-    void showPacket(const u_char *data, int len);
+    void showPacket(const unsigned char *data, int len);
     ~MainWindow();
 
 private slots:

@@ -254,22 +254,55 @@ void MainWindow::on_tableWidget_cellClicked(int row, int column)
             QString desIp = packageInfoVec[selectedRow].getDesIp();
             QString version = packageInfoVec[selectedRow].getIpVersion();
             QString headerLen = packageInfoVec[selectedRow].getIpHeaderLen();
+            QString checksum = "0x" + packageInfoVec[selectedRow].getIpChecksum();
             QString Tos = packageInfoVec[selectedRow].getIpTos();
             QString iden = packageInfoVec[selectedRow].getIpId();
             QString ttl = packageInfoVec[selectedRow].getIpTtl();
-
-    //        QString flags = packageInfo[selectedRow].getIpFlag();
-
+            QString flags = packageInfoVec[selectedRow].getFlags();
+            QString frag = packageInfoVec[selectedRow].getFrag();
             QTreeWidgetItem* ip_item = new QTreeWidgetItem(QStringList()<<"Internet Protocol, Src:" + sourIp + ", Dst:" + desIp);
-            ip_item->addChild(new QTreeWidgetItem(QStringList()<<"SourIp:" + sourIp));
-            ip_item->addChild(new QTreeWidgetItem(QStringList()<<"DesIp:" + desIp));
+            ip_item->addChild(new QTreeWidgetItem(QStringList()<<"SourAdd:" + sourIp));
+            ip_item->addChild(new QTreeWidgetItem(QStringList()<<"DesAdd:" + desIp));
             ip_item->addChild(new QTreeWidgetItem(QStringList()<<"Version:" + version));
             ip_item->addChild(new QTreeWidgetItem(QStringList()<<"Header Length:" + headerLen));
+            ip_item->addChild(new QTreeWidgetItem(QStringList()<<"Header checksum:" + checksum));
             ip_item->addChild(new QTreeWidgetItem(QStringList()<<"TOS:" + Tos));
             ip_item->addChild(new QTreeWidgetItem(QStringList()<<"Identification:" + iden));
             ip_item->addChild(new QTreeWidgetItem(QStringList()<<"Total Length:" + ttl));
-
+            ip_item->addChild(new QTreeWidgetItem(QStringList()<<"Flags:" + flags));
+            ip_item->addChild(new QTreeWidgetItem(QStringList()<<"Frag:" + frag));
             ui->treeWidget->addTopLevelItem(ip_item);
+
+            if(packageType == "TCP" || packageType == "TLS" || packageType == "SSL"){
+                QString sourPort = packageInfoVec[selectedRow].getSourcePort();
+                QString desPort = packageInfoVec[selectedRow].getDesPort();
+                QString seq = packageInfoVec[selectedRow].getTcpSeq();
+                QString ack = packageInfoVec[selectedRow].getTcpAck();
+                QString headerLength = packageInfoVec[selectedRow].getTcpHeaderLength();
+                QString flags = packageInfoVec[selectedRow].getTcpFlags();
+                while(flags.size()<2)
+                    flags = "0" + flags;
+                flags = "0x" + flags;
+                QTreeWidgetItem* tcp_item = new QTreeWidgetItem(QStringList()<<"TCP, Src Port:" + sourPort + ", DesPort:" + desPort + ",Seq:" + seq + ", Ack:" + ack);
+
+                ui->treeWidget->addTopLevelItem(tcp_item);
+                tcp_item->addChild(new QTreeWidgetItem(QStringList()<<"Source Port:" + sourPort));
+                tcp_item->addChild(new QTreeWidgetItem(QStringList()<<"Des Port:" + desPort));
+                tcp_item->addChild(new QTreeWidgetItem(QStringList()<<"Seq:" + seq));
+                tcp_item->addChild(new QTreeWidgetItem(QStringList()<<"Ack:" + ack));
+                tcp_item->addChild(new QTreeWidgetItem(QStringList()<<"Flags:" + flags));
+            }
+
+        }
+        else{
+            QString sourIpv6 = packageInfoVec[selectedRow].getSourIpv6();
+            QString desIpv6 = packageInfoVec[selectedRow].getDesIpv6();
+            QString version2 = packageInfoVec[selectedRow].getIpVersion();
+            QTreeWidgetItem* ipv6_item = new QTreeWidgetItem(QStringList()<<"Internet Protocol, Src:" + sourIpv6 + ", Dst:" + desIpv6);
+            ipv6_item->addChild(new QTreeWidgetItem(QStringList()<<"SourAdd:" + sourIpv6));
+            ipv6_item->addChild(new QTreeWidgetItem(QStringList()<<"DesAdd:" + desIpv6));
+            ipv6_item->addChild(new QTreeWidgetItem(QStringList()<<"Version:" + version2));
+            ui->treeWidget->addTopLevelItem(ipv6_item);
         }
 
     }
