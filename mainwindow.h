@@ -5,6 +5,8 @@
 #include <stdio.h>
 #include "pcap.h"
 #include "winsock2.h"
+#include "packageinfo.h"
+#include <QVector>
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
@@ -16,9 +18,29 @@ class MainWindow : public QMainWindow
 
 public:
     MainWindow(QWidget *parent = nullptr);
+    void showNIC();
+    int chooseNIC();
+    void showPacket(const u_char *data, int len);
     ~MainWindow();
+
+private slots:
+    void on_comboBox_currentIndexChanged(int index);
+
+    void on_tableWidget_cellClicked(int row, int column);
+
+public slots:
+    void handleMessage(PackageInfo dataI);
 
 private:
     Ui::MainWindow *ui;
+    pcap_if_t* all_devices;
+    pcap_if_t* device;
+    pcap_t* pointer;
+    char errbuf[PCAP_ERRBUF_SIZE];
+    QVector<PackageInfo> packageInfo;
+    int count;//数据包个数
+    //选中的行
+    int selectedRow;
+    QString dataPackageText;
 };
 #endif // MAINWINDOW_H

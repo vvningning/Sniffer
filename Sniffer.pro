@@ -9,17 +9,20 @@ CONFIG += c++11
 #DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
 
 SOURCES += \
+    capturethread.cpp \
     main.cpp \
-    mainwindow.cpp
+    mainwindow.cpp \
+    packageinfo.cpp
 
 HEADERS += \
-    mainwindow.h
+    capturethread.h \
+    mainwindow.h \
+    packageinfo.h
 
 FORMS += \
     mainwindow.ui
 
 INCLUDEPATH += D:\setting\winpcap\WpdPack_4_1_2\WpdPack\Include
-
 LIBS += D:\setting\winpcap\WpdPack_4_1_2\WpdPack\Lib\x64\wpcap.lib
 LIBS += D:\setting\winpcap\WpdPack_4_1_2\WpdPack\Lib\x64\Packet.lib
 LIBS += -lws2_32

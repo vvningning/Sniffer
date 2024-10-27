@@ -1,20 +1,105 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
+#include "capturethread.h"
+#include <iostream>
+#include "QDebug"
+#include <iomanip>
+#include <cctype>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
+    ui->textEdit->setReadOnly(true);
+    showNIC();
+    count = 0;
+    selectedRow = -1;
     statusBar()->showMessage("welcome!");
-    //工具栏
     ui->toolBar->addAction(ui->actionstart);
     ui->toolBar->addAction(ui->actionstop);
     ui->toolBar->addAction(ui->actionclear);
     ui->toolBar->setMovable(false);
-
-    //隐藏树的第一项
+    //共7列
+    ui->tableWidget->setColumnCount(7);
+    //设置行高
+    ui->tableWidget->verticalHeader()->setDefaultSectionSize(30);
+    //表头
+    QStringList title = {"No.","Time","Source","Destination","Protocol","Length","Tnfo"};
+    ui->tableWidget->setHorizontalHeaderLabels(title);
+    //设置列宽
+    ui->tableWidget->setColumnWidth(0,50);
+    ui->tableWidget->setColumnWidth(1,100);
+    ui->tableWidget->setColumnWidth(2,300);
+    ui->tableWidget->setColumnWidth(3,300);
+    ui->tableWidget->setColumnWidth(4,100);
+    ui->tableWidget->setColumnWidth(5,100);
+    ui->tableWidget->setColumnWidth(6,1000);
+    //去掉表格自带编号
+    ui->tableWidget->verticalHeader()->setVisible(false);
+    //点中单元格选中一行
+    ui->tableWidget->setSelectionBehavior(QAbstractItemView::SelectRows);
     ui->treeWidget->setHeaderHidden(true);
+
+
+    //子线程与主线程隔离，不需要挂载在对象树上
+    CaptureThread* thread = new CaptureThread;
+    static bool index = true;
+    //点击开始按钮
+    connect(ui->actionstart,&QAction::triggered,this,[=](){
+        if(index){
+
+            //清空
+            count = 0;
+            ui->tableWidget->clearContents();
+            ui->tableWidget->setRowCount(0);
+            //释放QVector
+            for(int i=0;i<this->packageInfo.size();i++){
+                free((char*)(this->packageInfo[i].package));
+                this->packageInfo[i].package = nullptr;
+            }
+            //释放dataPackage
+            QVector<PackageInfo>().swap(packageInfo);
+
+
+            index = false;
+//            statusBar()->showMessage(device->name);
+            //开始抓包
+            int ret = chooseNIC();
+            if(ret!=-1 && pointer){
+                //正常获取网卡后才捕获
+                thread->setPointer(pointer);
+                thread->setFlag();
+                thread->start();
+
+                //捕获开始时不能随意更改网卡
+                ui->comboBox->setEnabled(false);
+            }
+            else{
+                //打开网卡有问题
+                count = 0;
+                index = true;
+            }
+        }
+    });
+    //点击停止按钮
+    connect(ui->actionstop,&QAction::triggered,this,[=](){
+        //index为false时能停止
+        //cout<<index;
+        if(!index){
+            index = true;
+            thread->resetFlag();
+            thread->quit();
+            thread->wait();
+            //网卡可更换
+            ui->comboBox->setEnabled(true);
+            //释放pointer
+            pcap_close(pointer);
+            pointer = nullptr;
+        }
+    });
+    //发送者 地址 接收者 地址
+    connect(thread,&CaptureThread::send,this,&MainWindow::handleMessage);
 }
 
 MainWindow::~MainWindow()
@@ -22,3 +107,139 @@ MainWindow::~MainWindow()
     delete ui;
 }
 
+void MainWindow::showNIC(){
+    int n = pcap_findalldevs(&all_devices,errbuf);
+    qDebug()<<n;
+    qDebug()<<QString(errbuf);
+    if(n==-1||0){
+        ui->comboBox->addItem("error:" + QString(errbuf));
+    }
+    else{
+        ui->comboBox->clear();
+        ui->comboBox->addItem("请选择网卡");
+//        qDebug()<<all_devices->name;
+        if(all_devices == nullptr){
+            qDebug()<<"wuwuwu";
+        }
+        for(pcap_if_t* d = all_devices;d!=nullptr;d = d->next){
+            qDebug()<<QString(d->name);
+            QString dName = d->name;
+            dName.replace("\\Device\\","");
+            QString desc = d->description;
+            QString deviceString = dName+desc;
+            ui->comboBox->addItem(deviceString);
+        }
+    }
+}
+
+void MainWindow::on_comboBox_currentIndexChanged(int index)
+{
+    int i=0;
+    if(index!=0){
+        for(device = all_devices;i<index-1;device = device->next,i++);
+    }
+    return;
+}
+
+int MainWindow::chooseNIC(){
+    if(device){
+        qDebug()<<device->name;
+        pointer = pcap_open_live(device->name,65536,1,1000,errbuf);
+    }
+    else return -1;
+    if(!pointer){
+        //释放
+        pcap_freealldevs(all_devices);
+        device = nullptr;
+        return -1;
+    }
+    else{
+        //留下主流的数据包
+        if(pcap_datalink(pointer)!= DLT_EN10MB){
+            pcap_close(pointer);
+            pcap_freealldevs(all_devices);
+            device = nullptr;
+            pointer = nullptr;
+            return -1;
+        }
+        printf(device->name);
+        statusBar()->showMessage(device->name);
+    }
+    return 0;
+}
+
+void MainWindow::handleMessage(PackageInfo dataI){
+    //qDebug()<<dataP.getTimeStamp()<<" "<<dataP.getInfo();
+    //每个数据包都会触发槽函数，这里只需要处理一个数据包的内容
+    ui->tableWidget->insertRow(count);
+    this->packageInfo.push_back(dataI);
+    QString type = dataI.getPackageType();
+    QColor color;
+    if(type == "TCP")
+        color = QColor(216,191,216);
+    else if(type == "UDP")
+        color = QColor(217,236,255);
+    else if(type == "ARP")
+        color = QColor(250,236,216);
+    else if(type == "DNS")
+        color = QColor(255,255,224);
+    else
+        color = QColor(255,218,185);
+//        color = QColor(255,0,0);
+
+    ui->tableWidget->setItem(count,0,new QTableWidgetItem(QString::number(count)));
+    ui->tableWidget->setItem(count,1,new QTableWidgetItem(dataI.getTimeStamp()));
+    ui->tableWidget->setItem(count,2,new QTableWidgetItem(dataI.getSourAdd()));
+    ui->tableWidget->setItem(count,3,new QTableWidgetItem(dataI.getDesAdd()));
+    ui->tableWidget->setItem(count,4,new QTableWidgetItem(type));
+    ui->tableWidget->setItem(count,5,new QTableWidgetItem(dataI.getDataLength()));
+    ui->tableWidget->setItem(count,6,new QTableWidgetItem(dataI.getInfo()));
+    for(int i=0;i<7;i++){
+        ui->tableWidget->item(count,i)->setBackground(color);
+    }
+    count++;
+
+}
+void MainWindow::on_tableWidget_cellClicked(int row, int column)
+{
+    //与上次点击相同
+    if(row == selectedRow||row < 0) return;
+    ui->treeWidget->clear();
+    selectedRow = row;
+    if(selectedRow<0||selectedRow>count) return;
+    QString sourMac = packageInfo[selectedRow].getSourMac();
+    QString desMac = packageInfo[selectedRow].getDesMac();
+    QString type = packageInfo[selectedRow].getMacType();
+    QString node = "Ethernet,Source:"+sourMac +" Destination:"+desMac;
+    QTreeWidgetItem *item = new QTreeWidgetItem(QStringList()<<node);
+    ui->treeWidget->addTopLevelItem(item);
+    item -> addChild(new QTreeWidgetItem(QStringList()<<("Source:" + sourMac)));
+    item -> addChild(new QTreeWidgetItem(QStringList()<<("Destination:" + desMac)));
+    item -> addChild(new QTreeWidgetItem(QStringList()<<("Type:" + type)));
+
+    showPacket(packageInfo[selectedRow].data,packageInfo[selectedRow].len);
+
+    ui->textEdit->setText(dataPackageText);
+}
+
+void MainWindow::showPacket(const unsigned char *data, int len) {
+    QString result;
+    // 输出十六进制
+       result += "Hex: ";
+       for (int i = 0; i < len; i++) {
+           result += QString::number(data[i], 16).rightJustified(2, '0') + " ";
+       }
+       result += "\n";
+
+       // 输出 ASCII
+       result += "ASCII: ";
+       for (int i = 0; i < len; i++) {
+           if (isprint(data[i])) {
+               result += (char)data[i];
+           } else {
+               result += '.';
+           }
+       }
+       result += "\n";
+       dataPackageText = result;
+}
