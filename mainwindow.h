@@ -37,7 +37,7 @@ private:
     pcap_if_t* device;
     pcap_t* pointer;
     char errbuf[PCAP_ERRBUF_SIZE];
-    QVector<PackageInfo> packageInfo;
+    QVector<PackageInfo> packageInfoVec;
     int count;//数据包个数
     //选中的行
     int selectedRow;

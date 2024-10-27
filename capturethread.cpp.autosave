@@ -290,7 +290,7 @@ QString CaptureThread::handleIcmpPackage(const u_char *data){
     ip_header* ip;
     ip = (ip_header*)(data + 14);
     int ip_len = ((ip->versionAndHLength)&0x0F)*4;
-    icmp = (icmp_header*)(data + 14+ip_len);
+    icmp = (icmp_header*)(data + 14 + ip_len);
     u_char type = icmp->type;
     u_char code = icmp->code;
     QString info="";

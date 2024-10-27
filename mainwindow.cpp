@@ -3,15 +3,36 @@
 #include "capturethread.h"
 #include <iostream>
 #include "QDebug"
+#include "QRect"
 #include <iomanip>
 #include <cctype>
+#include <QGuiApplication>
+#include <QScreen>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
+    setWindowIcon(QIcon(":/gkd.png"));
+    setWindowTitle("mySniffer");
+    resize(2000, 1400);
+    setMinimumSize(1200, 1000);
+    //居中
+    //获取屏幕尺寸
+    QRect screenGeometry = QGuiApplication::primaryScreen()->geometry();
+    int x = (screenGeometry.width() - this->width()) / 2;
+    int y = (screenGeometry.height() - this->height()) / 2;
+    //设置窗口位置
+    this->move(x, y);
+//    QRect screenGeometry = QDesktopWidget().screenGeometry();
+//    int x = (screenGeometry.width() - this->width()) / 2;
+//    int y = (screenGeometry.height() - this->height()) / 2;
+
+    // 设置窗口位置
+    this->move(x, y);
     ui->textEdit->setReadOnly(true);
+    ui->textEdit->setFixedHeight(250); // 设置固定高度为 300 像素
     showNIC();
     count = 0;
     selectedRow = -1;
@@ -54,12 +75,14 @@ MainWindow::MainWindow(QWidget *parent)
             ui->tableWidget->clearContents();
             ui->tableWidget->setRowCount(0);
             //释放QVector
-            for(int i=0;i<this->packageInfo.size();i++){
-                free((char*)(this->packageInfo[i].package));
-                this->packageInfo[i].package = nullptr;
+            for(int i=0;i<this->packageInfoVec.size();i++){
+                free((char*)(this->packageInfoVec[i].package));
+                this->packageInfoVec[i].package = nullptr;
             }
             //释放dataPackage
-            QVector<PackageInfo>().swap(packageInfo);
+            QVector<PackageInfo>().swap(packageInfoVec);
+
+            ui->textEdit->setText("");
 
 
             index = false;
@@ -168,12 +191,12 @@ int MainWindow::chooseNIC(){
     return 0;
 }
 
-void MainWindow::handleMessage(PackageInfo dataI){
+void MainWindow::handleMessage(PackageInfo pI){
     //qDebug()<<dataP.getTimeStamp()<<" "<<dataP.getInfo();
     //每个数据包都会触发槽函数，这里只需要处理一个数据包的内容
     ui->tableWidget->insertRow(count);
-    this->packageInfo.push_back(dataI);
-    QString type = dataI.getPackageType();
+    this->packageInfoVec.push_back(pI);
+    QString type = pI.getPackageType();
     QColor color;
     if(type == "TCP")
         color = QColor(216,191,216);
@@ -188,12 +211,12 @@ void MainWindow::handleMessage(PackageInfo dataI){
 //        color = QColor(255,0,0);
 
     ui->tableWidget->setItem(count,0,new QTableWidgetItem(QString::number(count)));
-    ui->tableWidget->setItem(count,1,new QTableWidgetItem(dataI.getTimeStamp()));
-    ui->tableWidget->setItem(count,2,new QTableWidgetItem(dataI.getSourAdd()));
-    ui->tableWidget->setItem(count,3,new QTableWidgetItem(dataI.getDesAdd()));
+    ui->tableWidget->setItem(count,1,new QTableWidgetItem(pI.getTimeStamp()));
+    ui->tableWidget->setItem(count,2,new QTableWidgetItem(pI.getSourAdd()));
+    ui->tableWidget->setItem(count,3,new QTableWidgetItem(pI.getDesAdd()));
     ui->tableWidget->setItem(count,4,new QTableWidgetItem(type));
-    ui->tableWidget->setItem(count,5,new QTableWidgetItem(dataI.getDataLength()));
-    ui->tableWidget->setItem(count,6,new QTableWidgetItem(dataI.getInfo()));
+    ui->tableWidget->setItem(count,5,new QTableWidgetItem(pI.getDataLength()));
+    ui->tableWidget->setItem(count,6,new QTableWidgetItem(pI.getInfo()));
     for(int i=0;i<7;i++){
         ui->tableWidget->item(count,i)->setBackground(color);
     }
@@ -204,20 +227,54 @@ void MainWindow::on_tableWidget_cellClicked(int row, int column)
 {
     //与上次点击相同
     if(row == selectedRow||row < 0) return;
-    ui->treeWidget->clear();
     selectedRow = row;
-    if(selectedRow<0||selectedRow>count) return;
-    QString sourMac = packageInfo[selectedRow].getSourMac();
-    QString desMac = packageInfo[selectedRow].getDesMac();
-    QString type = packageInfo[selectedRow].getMacType();
-    QString node = "Ethernet,Source:"+sourMac +" Destination:"+desMac;
-    QTreeWidgetItem *item = new QTreeWidgetItem(QStringList()<<node);
-    ui->treeWidget->addTopLevelItem(item);
-    item -> addChild(new QTreeWidgetItem(QStringList()<<("Source:" + sourMac)));
-    item -> addChild(new QTreeWidgetItem(QStringList()<<("Destination:" + desMac)));
-    item -> addChild(new QTreeWidgetItem(QStringList()<<("Type:" + type)));
+    ui->treeWidget->clear();
+    ui->textEdit->clear();
+    if (selectedRow < 0 || selectedRow >= packageInfoVec.size()) {
+        qDebug()<<"error selected row";
+        return;
+    }
+    showPacket(packageInfoVec[selectedRow].package,packageInfoVec[selectedRow].len);
 
-    showPacket(packageInfo[selectedRow].data,packageInfo[selectedRow].len);
+    if(selectedRow<0||selectedRow>count) return;
+    QString sourMac = packageInfoVec[selectedRow].getSourMac();
+    QString desMac = packageInfoVec[selectedRow].getDesMac();
+    QString type = packageInfoVec[selectedRow].getMacType();
+    QString node = "Ethernet,Source:"+sourMac +" Destination:"+desMac;
+    QTreeWidgetItem *eth_item = new QTreeWidgetItem(QStringList()<<node);
+    ui->treeWidget->addTopLevelItem(eth_item);
+    eth_item -> addChild(new QTreeWidgetItem(QStringList()<<("Source:" + sourMac)));
+    eth_item -> addChild(new QTreeWidgetItem(QStringList()<<("Destination:" + desMac)));
+    eth_item -> addChild(new QTreeWidgetItem(QStringList()<<("Type:" + type)));
+
+    QString packageType = packageInfoVec[selectedRow].getPackageType();
+    if(packageType != "ARP"){
+        if(packageType != "IPv6"){
+            QString sourIp = packageInfoVec[selectedRow].getSourIp();
+            QString desIp = packageInfoVec[selectedRow].getDesIp();
+            QString version = packageInfoVec[selectedRow].getIpVersion();
+            QString headerLen = packageInfoVec[selectedRow].getIpHeaderLen();
+            QString Tos = packageInfoVec[selectedRow].getIpTos();
+            QString iden = packageInfoVec[selectedRow].getIpId();
+            QString ttl = packageInfoVec[selectedRow].getIpTtl();
+
+    //        QString flags = packageInfo[selectedRow].getIpFlag();
+
+            QTreeWidgetItem* ip_item = new QTreeWidgetItem(QStringList()<<"Internet Protocol, Src:" + sourIp + ", Dst:" + desIp);
+            ip_item->addChild(new QTreeWidgetItem(QStringList()<<"SourIp:" + sourIp));
+            ip_item->addChild(new QTreeWidgetItem(QStringList()<<"DesIp:" + desIp));
+            ip_item->addChild(new QTreeWidgetItem(QStringList()<<"Version:" + version));
+            ip_item->addChild(new QTreeWidgetItem(QStringList()<<"Header Length:" + headerLen));
+            ip_item->addChild(new QTreeWidgetItem(QStringList()<<"TOS:" + Tos));
+            ip_item->addChild(new QTreeWidgetItem(QStringList()<<"Identification:" + iden));
+            ip_item->addChild(new QTreeWidgetItem(QStringList()<<"Total Length:" + ttl));
+
+            ui->treeWidget->addTopLevelItem(ip_item);
+        }
+
+    }
+
+    showPacket(packageInfoVec[selectedRow].package,packageInfoVec[selectedRow].len);
 
     ui->textEdit->setText(dataPackageText);
 }
@@ -225,6 +282,10 @@ void MainWindow::on_tableWidget_cellClicked(int row, int column)
 void MainWindow::showPacket(const unsigned char *data, int len) {
     QString result;
     // 输出十六进制
+    result = "";
+    result += "len:";
+    result += QString::number(len);
+    result += "\n";
        result += "Hex: ";
        for (int i = 0; i < len; i++) {
            result += QString::number(data[i], 16).rightJustified(2, '0') + " ";

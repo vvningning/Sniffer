@@ -88,6 +88,23 @@ typedef struct ip_header{
 
 }ip_header;
 
+//ipv6
+typedef struct ipv6_header{
+    //不满一个字节的按一个字节算
+    unsigned char versionAndHLength;
+    unsigned char TOS;
+    unsigned short totalLength;
+    unsigned short identification;
+    unsigned short FlagsAndOffet;
+    unsigned char ttl;
+    unsigned char protocol;
+    unsigned short checksum;
+    unsigned int sour_add;
+    unsigned int des_add;
+
+}ipv6_header;
+
+
 //dns
 //16bit identification    16bit flags(1b QR 1响应2查询||4b op 查询与响应的类型……）
 //16bit question询问的数量  16bit Answer 应答数量

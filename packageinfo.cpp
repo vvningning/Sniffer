@@ -1,6 +1,7 @@
 #include "packageinfo.h"
 #include <QMetaType>
 #include "winsock2.h"
+#include <QDebug>
 
 PackageInfo::PackageInfo()
 {
@@ -60,6 +61,9 @@ QString PackageInfo::getPackageType(){
     if(this->package_type == 7){
         return "SSL";
     }
+    if(this->package_type == 8){
+        return "IPv6";
+    }
     else{
         return "";
     }
@@ -70,12 +74,12 @@ QString PackageInfo::getSourMac(){
     eth = (ether_header*)package;
     u_char* addr = eth->sour_add;
     if(addr){
-        QString res = byteToHex(addr,0) + ":";
-        res += byteToHex(addr,1) + ":";
-        res += byteToHex(addr,2) + ":";
-        res += byteToHex(addr,3) + ":";
-        res += byteToHex(addr,4) + ":";
-        res += byteToHex(addr,5);
+        QString res = byteToString(addr,1) + ":";
+        res += byteToString(addr+1,1) + ":";
+        res += byteToString(addr+2,1) + ":";
+        res += byteToString(addr+3,1) + ":";
+        res += byteToString(addr+4,1) + ":";
+        res += byteToString(addr+5,1);
         //广播
         if(res == "FF:FF:FF:FF:FF:FF") res += "(broadcast)";
         return res;
@@ -88,12 +92,12 @@ QString PackageInfo::getDesMac(){
     eth = (ether_header*)package;
     u_char* addr = eth->des_add;
     if(addr){
-        QString res = byteToHex(addr,0) + ":";
-        res += byteToHex(addr,1) + ":";
-        res += byteToHex(addr,2) + ":";
-        res += byteToHex(addr,3) + ":";
-        res += byteToHex(addr,4) + ":";
-        res += byteToHex(addr,5);
+        QString res = byteToString(addr,1) + ":";
+        res += byteToString(addr+1,1) + ":";
+        res += byteToString(addr+2,1) + ":";
+        res += byteToString(addr+3,1) + ":";
+        res += byteToString(addr+4,1) + ":";
+        res += byteToString(addr+5,1);
         //广播
         if(res == "FF:FF:FF:FF:FF:FF") res += "(broadcast)";
         return res;
@@ -141,6 +145,40 @@ QString PackageInfo::getMacType(){
     else return "";
 }
 
+QString PackageInfo::getIpVersion(){
+    ip_header*ip = (ip_header*)(package+14);
+    unsigned char ip_v = ip->versionAndHLength >> 4;
+    QString ip_v_string = QString::number(ip_v);
+    return ip_v_string;
+}
+
+QString PackageInfo::getIpHeaderLen(){
+    ip_header*ip = (ip_header*)(package+14);
+    QString res = "";
+    int length = ip->versionAndHLength & 0x0F;
+    if(length == 5) res = "20 bytes (5)";
+    else res = QString::number(length*5) + "bytes";
+    return res;
+}
+
+QString PackageInfo::getIpTos(){
+    ip_header*ip = (ip_header*)(package+14);
+    QString res = QString::number(ntohs(ip->TOS));
+    return res;
+}
+
+QString PackageInfo::getIpId(){
+    ip_header*ip = (ip_header*)(package+14);
+    QString res = QString::number(ntohs(ip->identification),16);
+    return res;
+}
+
+QString PackageInfo::getIpTtl(){
+    ip_header*ip = (ip_header*)(package+14);
+    QString res = QString::number(ntohs(ip->totalLength));
+    return res;
+}
+
 QString PackageInfo::byteToString(u_char *string, int size){
     QString res = "";
     for(int i=0;i<size;i++){
@@ -160,22 +198,6 @@ QString PackageInfo::byteToString(u_char *string, int size){
         }else{
             two += 0x30;
         }
-        res.append(one);
-        res.append(two);
-    }
-    return res;
-}
-QString PackageInfo::byteToHex(u_char *str, int size){
-    QString res = "";
-    for(int i = 0;i < size;i++){
-        char one = str[i] >> 4;
-        if(one >= 0x0A)
-            one = one + 0x41 - 0x0A;
-        else one = one + 0x30;
-        char two = str[i] & 0xF;
-        if(two >= 0x0A)
-            two = two  + 0x41 - 0x0A;
-        else two = two + 0x30;
         res.append(one);
         res.append(two);
     }

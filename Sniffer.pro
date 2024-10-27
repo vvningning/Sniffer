@@ -3,6 +3,7 @@ QT       += core gui
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
 CONFIG += c++11
+CONFIG += debug
 
 # You can make your code fail to compile if it uses deprecated APIs.
 # In order to do so, uncomment the following line.
@@ -26,6 +27,7 @@ INCLUDEPATH += D:\setting\winpcap\WpdPack_4_1_2\WpdPack\Include
 LIBS += D:\setting\winpcap\WpdPack_4_1_2\WpdPack\Lib\x64\wpcap.lib
 LIBS += D:\setting\winpcap\WpdPack_4_1_2\WpdPack\Lib\x64\Packet.lib
 LIBS += -lws2_32
+
 
 # Default rules for deployment.
 qnx: target.path = /tmp/$${TARGET}/bin
