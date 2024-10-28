@@ -198,8 +198,8 @@ void MainWindow::handleMessage(PackageInfo pI){
     this->packageInfoVec.push_back(pI);
     QString type = pI.getPackageType();
     QColor color;
-    if(type == "TCP")
-        color = QColor(216,191,216);
+    if(type == "TCP"||type == "SSL"||type == "TLS")
+        color = QColor(216,200,216);
     else if(type == "UDP")
         color = QColor(217,236,255);
     else if(type == "ARP")
@@ -258,9 +258,10 @@ void MainWindow::on_tableWidget_cellClicked(int row, int column)
             QString Tos = packageInfoVec[selectedRow].getIpTos();
             QString iden = packageInfoVec[selectedRow].getIpId();
             QString ttl = packageInfoVec[selectedRow].getIpTtl();
+            int payload = ttl.toUtf8().toInt() - 20;
             QString flags = packageInfoVec[selectedRow].getFlags();
             QString frag = packageInfoVec[selectedRow].getFrag();
-            QTreeWidgetItem* ip_item = new QTreeWidgetItem(QStringList()<<"Internet Protocol, Src:" + sourIp + ", Dst:" + desIp);
+            QTreeWidgetItem* ip_item = new QTreeWidgetItem(QStringList()<<"Internet Protocol, Sour:" + sourIp + ", Des:" + desIp);
             ip_item->addChild(new QTreeWidgetItem(QStringList()<<"SourAdd:" + sourIp));
             ip_item->addChild(new QTreeWidgetItem(QStringList()<<"DesAdd:" + desIp));
             ip_item->addChild(new QTreeWidgetItem(QStringList()<<"Version:" + version));
@@ -274,15 +275,22 @@ void MainWindow::on_tableWidget_cellClicked(int row, int column)
             ui->treeWidget->addTopLevelItem(ip_item);
 
             if(packageType == "TCP" || packageType == "TLS" || packageType == "SSL"){
+
                 QString sourPort = packageInfoVec[selectedRow].getSourcePort();
                 QString desPort = packageInfoVec[selectedRow].getDesPort();
                 QString seq = packageInfoVec[selectedRow].getTcpSeq();
                 QString ack = packageInfoVec[selectedRow].getTcpAck();
-                QString headerLength = packageInfoVec[selectedRow].getTcpHeaderLength();
+                int headerLen = packageInfoVec[selectedRow].getTcpHeaderLength().toUtf8().toInt();
                 QString flags = packageInfoVec[selectedRow].getTcpFlags();
                 while(flags.size()<2)
                     flags = "0" + flags;
                 flags = "0x" + flags;
+                QString syn = packageInfoVec[selectedRow].getTcpSyn();
+                QString ackNumber = packageInfoVec[selectedRow].getTcpAckFlag();
+                QString windowSize = packageInfoVec[selectedRow].getTcpWindowSize();
+                QString checksum = "0x" + packageInfoVec[selectedRow].getTcpChecksum();
+                QString urgentP = packageInfoVec[selectedRow].getTcpUrgentP();
+                payload -= (headerLen * 4);
                 QTreeWidgetItem* tcp_item = new QTreeWidgetItem(QStringList()<<"TCP, Src Port:" + sourPort + ", DesPort:" + desPort + ",Seq:" + seq + ", Ack:" + ack);
 
                 ui->treeWidget->addTopLevelItem(tcp_item);
@@ -290,8 +298,53 @@ void MainWindow::on_tableWidget_cellClicked(int row, int column)
                 tcp_item->addChild(new QTreeWidgetItem(QStringList()<<"Des Port:" + desPort));
                 tcp_item->addChild(new QTreeWidgetItem(QStringList()<<"Seq:" + seq));
                 tcp_item->addChild(new QTreeWidgetItem(QStringList()<<"Ack:" + ack));
+                tcp_item->addChild(new QTreeWidgetItem(QStringList()<<"header length:" + QString::number(headerLen)+" bytes"));
                 tcp_item->addChild(new QTreeWidgetItem(QStringList()<<"Flags:" + flags));
+                tcp_item->addChild(new QTreeWidgetItem(QStringList()<<"SYN Flags" + syn));
+                tcp_item->addChild(new QTreeWidgetItem(QStringList()<<"ACK Flag:" + ackNumber));
+                tcp_item->addChild(new QTreeWidgetItem(QStringList()<<"window size:" + windowSize));
+                tcp_item->addChild(new QTreeWidgetItem(QStringList()<<"checksum:" + checksum));
+                tcp_item->addChild(new QTreeWidgetItem(QStringList()<<"urgent pointer:" + urgentP));
+                if(payload>0) tcp_item->addChild(new QTreeWidgetItem(QStringList()<<"TCP Payload:" + QString::number(payload)));
             }
+            if(packageType == "UDP" || packageType == "DNS"){
+                QString srcPort = packageInfoVec[selectedRow].getUdpSourPort();
+                QString desPort = packageInfoVec[selectedRow].getUdpDesPort();
+                QString Length = packageInfoVec[selectedRow].getUdpLen();
+                QString checksum = "0x" + packageInfoVec[selectedRow].getUdpChecksum();
+                QTreeWidgetItem* udp_item = new QTreeWidgetItem(QStringList()<<"UDP, sour Port:" + srcPort + ", des Port:" + desPort);
+                ui->treeWidget->addTopLevelItem(udp_item);
+                udp_item->addChild(new QTreeWidgetItem(QStringList()<<"Source Port:" + srcPort));
+                udp_item->addChild(new QTreeWidgetItem(QStringList()<<"Destination Port:" + desPort));
+                udp_item->addChild(new QTreeWidgetItem(QStringList()<<"length:" + Length));
+                udp_item->addChild(new QTreeWidgetItem(QStringList()<<"checksum:" + checksum));
+                int udpLength = Length.toUtf8().toInt();
+                if(udpLength > 0){
+                    udp_item->addChild(new QTreeWidgetItem(QStringList()<<"UDP PayLoad (" + QString::number(udpLength - 8) + " bytes)"));
+                }
+            }
+            if(packageType == "ICMP"){
+                            payload -= 8;
+                            QTreeWidgetItem* icmp_item = new QTreeWidgetItem(QStringList()<<"ICMP");
+                            ui->treeWidget->addTopLevelItem(icmp_item);
+                            QString type = packageInfoVec[selectedRow].getIcmpType();
+                            QString code = packageInfoVec[selectedRow].getIcmpCode();
+                            QString info = ui->tableWidget->item(row,6)->text();
+                            QString checksum = "0x" + packageInfoVec[selectedRow].getIcmpChecksum();
+                            QString id = packageInfoVec[selectedRow].getIcmpIden();
+                            QString seq = packageInfoVec[selectedRow].getIcmpSeq();
+                            icmp_item->addChild(new QTreeWidgetItem(QStringList()<<"type:" + type + "(" + info + ")"));
+                            icmp_item->addChild(new QTreeWidgetItem(QStringList()<<"code:" + code));
+                            icmp_item->addChild(new QTreeWidgetItem(QStringList()<<"checksum:" + checksum));
+                            icmp_item->addChild(new QTreeWidgetItem(QStringList()<<"iden:" + id));
+                            icmp_item->addChild(new QTreeWidgetItem(QStringList()<<"seq:" + seq));
+                            if(payload > 0){
+                                QTreeWidgetItem* dataItem = new QTreeWidgetItem(QStringList()<<"Data (" + QString::number(payload) + " bytes)");
+                                icmp_item->addChild(dataItem);
+                                QString icmpData = packageInfoVec[selectedRow].getIcmpData(payload);
+                                dataItem->addChild(new QTreeWidgetItem(QStringList()<<icmpData.toUtf8()));
+                            }
+                        }
 
         }
         else{

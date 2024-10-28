@@ -324,6 +324,35 @@ QString CaptureThread::handleIcmpPackage(const unsigned char *data){
     if(type==0&&code==0){
         info = "Echo response(ping command response";
     }
+    else if(type==3){
+        if(code==0){
+            info = "Network unreachable";
+        }
+        else if(code==1){
+            info = "Host unreachable";
+        }
+        else if(code==2){
+            info = "Protocol unreachable";
+        }
+        else if(code==3){
+            info = "Port unreachable";
+        }
+        else if(code==4){
+            info = "Fragmentation is required, but DF is set";
+        }
+        else if(code==5){
+            info = "Source route selection failed";
+        }
+        else if(code==6){
+            info = "Unknown target network";
+        }
+    }
+    else if(type==4&&code==0){
+        info = "Source station suppression [congestion control]";
+    }
+    else if(type==5){
+        info = "Relocation";
+    }
     else if(type==8&&code==0){
         info = "Echo request(ping command request";
     }

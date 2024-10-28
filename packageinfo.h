@@ -181,6 +181,21 @@ public:
     QString getTcpSeq();
     QString getTcpHeaderLength();
     QString getTcpFlags();
+    QString getTcpSyn();
+    QString getTcpAckFlag();
+    QString getTcpWindowSize();
+    QString getTcpChecksum();
+    QString getTcpUrgentP();
+    QString getUdpSourPort();
+    QString getUdpDesPort();
+    QString getUdpLen();
+    QString getUdpChecksum();
+    QString getIcmpType();
+    QString getIcmpCode();
+    QString getIcmpChecksum();
+    QString getIcmpIden();
+    QString getIcmpSeq();
+    QString getIcmpData(int size);
 private:
     unsigned int data_length;
     QString timestamp;
