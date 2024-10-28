@@ -424,12 +424,97 @@ QString PackageInfo::getIcmpData(int size){
     ip = (ip_header*)(package + 14);
     int ip_len = ((ip->versionAndHLength)&0x0F)*4;
     char* icmp = (char*)(package+14+ip_len+8);
+
     QString res= "";
     for(int i = 0;i < size;i++){
+        if (isprint(*icmp)) {
+             res += (*icmp);
+        } else {
+            res += '.';
+        }
         res += (*icmp);
         icmp++;
     }
     return res;
+}
+
+QString PackageInfo::getArpType(){
+    arp_header* arp = (arp_header*)(package + 14);
+    int type = ntohs(arp->type);
+    QString res = QString::number(type);
+    return res;
+}
+
+QString PackageInfo::getArpProtocol(){
+    arp_header* arp = (arp_header*)(package + 14);
+    int type = ntohs(arp->protocol);
+    QString res = QString::number(type);
+    return res;
+}
+
+QString PackageInfo::getArpMacLen(){
+    arp_header* arp = (arp_header*)(package + 14);
+    QString res = QString::number(arp->macLength);
+    return res;
+}
+
+QString PackageInfo::getArpIpLen(){
+    arp_header* arp = (arp_header*)(package + 14);
+    QString res = QString::number(arp->ipLength);
+    return res;
+}
+
+QString PackageInfo::getArpOpCode(){
+    arp_header* arp = (arp_header*)(package + 14);
+    int code = ntohs(arp->op_code);
+    QString res = "";
+    if(code == 1) res  = "1(request)";
+    else if(code == 2) res = "2(reply)";
+    return res;
+}
+
+QString PackageInfo::getArpSourMacAddr(){
+    arp_header* arp = (arp_header*)(package + 14);
+    unsigned char* sour_eth_add = arp->sour_eth_addr;
+    QString sourEth = byteToString(sour_eth_add,1)+":";
+    sourEth += byteToString((sour_eth_add+1),1)+":";
+    sourEth += byteToString((sour_eth_add+2),1)+":";
+    sourEth += byteToString((sour_eth_add+3),1)+":";
+    sourEth += byteToString((sour_eth_add+4),1)+":";
+    sourEth += byteToString((sour_eth_add+5),1);
+    return sourEth;
+}
+
+QString PackageInfo::getArpDesMacAddr(){
+    arp_header* arp = (arp_header*)(package + 14);
+    unsigned char* des_eth_add = arp->des_eth_addr;
+    QString desEth = byteToString(des_eth_add,1)+":";
+    desEth += byteToString((des_eth_add+1),1)+":";
+    desEth += byteToString((des_eth_add+2),1)+":";
+    desEth += byteToString((des_eth_add+3),1)+":";
+    desEth += byteToString((des_eth_add+4),1)+":";
+    desEth += byteToString((des_eth_add+5),1);
+    return desEth;
+}
+
+QString PackageInfo::getArpSourIpAddr(){
+    arp_header* arp = (arp_header*)(package + 14);
+    unsigned char* sour_ip_add = arp->sour_ip_addr;
+    QString sourIP = QString::number(*sour_ip_add)+".";
+    sourIP += QString::number(*(sour_ip_add+1))+".";
+    sourIP += QString::number(*(sour_ip_add+2))+".";
+    sourIP += QString::number(*(sour_ip_add+3));
+    return sourIP;
+}
+
+QString PackageInfo::getArpDesIpAddr(){
+    arp_header* arp = (arp_header*)(package + 14);
+    unsigned char* des_ip_add = arp->des_ip_addr;
+    QString desIP = QString::number(*des_ip_add)+".";
+    desIP += QString::number(*(des_ip_add+1))+".";
+    desIP += QString::number(*(des_ip_add+2))+".";
+    desIP += QString::number(*(des_ip_add+3));
+    return desIP;
 }
 
 QString PackageInfo::byteToString(unsigned char *string, int size){

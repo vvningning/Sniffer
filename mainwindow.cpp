@@ -8,12 +8,15 @@
 #include <cctype>
 #include <QGuiApplication>
 #include <QScreen>
+#include <string>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
+    index = false;
+    filter = false;
     setWindowIcon(QIcon(":/gkd.png"));
     setWindowTitle("mySniffer");
     resize(2000, 1400);
@@ -65,7 +68,7 @@ MainWindow::MainWindow(QWidget *parent)
 
     //子线程与主线程隔离，不需要挂载在对象树上
     CaptureThread* thread = new CaptureThread;
-    static bool index = true;
+    index = true;
     //点击开始按钮
     connect(ui->actionstart,&QAction::triggered,this,[=](){
         if(index){
@@ -92,6 +95,19 @@ MainWindow::MainWindow(QWidget *parent)
             if(ret!=-1 && pointer){
                 //正常获取网卡后才捕获
                 thread->setPointer(pointer);
+                //如果有过滤器
+                QString pro = ui->lineEdit->text().toUpper();
+                if(pro == "ARP"||pro == "ICMP"||pro == "TCP"||pro == "UDP"||pro == "DNS"||pro == "TLS"||pro == "SSL"||pro == "IPV6"){
+                    QString search = pro.toLower();
+                    if(pro=="DNS") search = "udp and port 53";
+                    if(pro=="TLS"||"SSL") search = "tcp port 443";
+                    if(pro=="ipv6") search = "ip6";
+
+            //        qDebug()<<"222";
+                    if(search!="") {
+                        thread->setFilter(true);
+                        thread->setFilterPro(search.toStdString());
+                }}
                 thread->setFlag();
                 thread->start();
 
@@ -112,6 +128,8 @@ MainWindow::MainWindow(QWidget *parent)
         if(!index){
             index = true;
             thread->resetFlag();
+            thread->setFilter(false);
+            thread->setFilterPro("");
             thread->quit();
             thread->wait();
             //网卡可更换
@@ -123,6 +141,8 @@ MainWindow::MainWindow(QWidget *parent)
     });
     //发送者 地址 接收者 地址
     connect(thread,&CaptureThread::send,this,&MainWindow::handleMessage);
+    connect(ui->lineEdit,&QLineEdit::textChanged,this,&MainWindow::on_lineEdit_textChanged);
+//    ui->lineEdit->setStyleSheet("QLineEdit { background-color: red; }");
 }
 
 MainWindow::~MainWindow()
@@ -342,7 +362,7 @@ void MainWindow::on_tableWidget_cellClicked(int row, int column)
                                 QTreeWidgetItem* dataItem = new QTreeWidgetItem(QStringList()<<"Data (" + QString::number(payload) + " bytes)");
                                 icmp_item->addChild(dataItem);
                                 QString icmpData = packageInfoVec[selectedRow].getIcmpData(payload);
-                                dataItem->addChild(new QTreeWidgetItem(QStringList()<<icmpData.toUtf8()));
+                                dataItem->addChild(new QTreeWidgetItem(QStringList()<<icmpData));
                             }
                         }
 
@@ -359,11 +379,39 @@ void MainWindow::on_tableWidget_cellClicked(int row, int column)
         }
 
     }
+    else{
+        //arp
+        QTreeWidgetItem* arp_item = new QTreeWidgetItem(QStringList()<<"ARP");
+        ui->treeWidget->addTopLevelItem(arp_item);
+        QString type = packageInfoVec[selectedRow].getArpType();
+        QString protocol = packageInfoVec[selectedRow].getArpProtocol();
+        QString macLen = packageInfoVec[selectedRow].getArpMacLen();
+        QString ipLen = packageInfoVec[selectedRow].getArpIpLen();
+        QString opCode = packageInfoVec[selectedRow].getArpOpCode();
+        QString sourMacAddr = packageInfoVec[selectedRow].getArpSourMacAddr();
+        QString desMacAddr = packageInfoVec[selectedRow].getArpDesMacAddr();
+        QString sourIpAddr = packageInfoVec[selectedRow].getArpSourIpAddr();
+        QString desIpAddr = packageInfoVec[selectedRow].getArpDesIpAddr();
+
+        arp_item->addChild(new QTreeWidgetItem(QStringList()<<"hardware type:" + type));
+        arp_item->addChild(new QTreeWidgetItem(QStringList()<<"protocol:" + protocol));
+        arp_item->addChild(new QTreeWidgetItem(QStringList()<<"mac length:" + macLen));
+        arp_item->addChild(new QTreeWidgetItem(QStringList()<<"protocol length:" + ipLen));
+        arp_item->addChild(new QTreeWidgetItem(QStringList()<<"op code:" + opCode));
+        arp_item->addChild(new QTreeWidgetItem(QStringList()<<"source mac address:" + sourMacAddr));
+        arp_item->addChild(new QTreeWidgetItem(QStringList()<<"source ip address:" + sourIpAddr));
+        arp_item->addChild(new QTreeWidgetItem(QStringList()<<"des MAC address:" + desMacAddr));
+        arp_item->addChild(new QTreeWidgetItem(QStringList()<<"des IP address:" + desIpAddr));
+        return;
+    }
+
 
     showPacket(packageInfoVec[selectedRow].package,packageInfoVec[selectedRow].len);
 
     ui->textEdit->setText(dataPackageText);
 }
+
+
 
 void MainWindow::showPacket(const unsigned char *data, int len) {
     QString result;
@@ -389,4 +437,66 @@ void MainWindow::showPacket(const unsigned char *data, int len) {
        }
        result += "\n";
        dataPackageText = result;
+}
+
+void MainWindow::on_lineEdit_textChanged(const QString &arg1)
+{
+    QString pro = arg1;
+    pro = arg1.toUpper();
+
+
+    if(pro == "ARP"||pro == "ICMP"||pro == "TCP"||pro == "UDP"||pro == "DNS"||pro == "TLS"||pro == "SSL"||pro == "IPV6"||pro == ""){
+        ui->lineEdit->setStyleSheet("QLineEdit {background-color:rgb(192,255,203);}");
+//        qDebug()<<"222";
+    }else{
+         ui->lineEdit->setStyleSheet("QLineEdit {background-color:rgb(255,192,203);}");
+//         qDebug()<<"111";
+    }
+
+}
+
+void MainWindow::on_lineEdit_returnPressed()
+{
+    QString pro = ui->lineEdit->text().toUpper();
+    QString search = "";
+    qDebug()<<pro;
+
+
+
+    if(pro == "ARP"||pro == "ICMP"||pro == "TCP"||pro == "UDP"||pro == "DNS"||pro == "TLS"||pro == "SSL"||pro == "IPV6"||pro == ""){
+        ui->lineEdit->setStyleSheet("QLineEdit {background-color:rgb(192,255,203);}");
+        search = pro;
+//        qDebug()<<"222";
+    }else{
+         ui->lineEdit->setStyleSheet("QLineEdit {background-color:rgb(255,192,203);}");
+//         qDebug()<<"111";
+    }
+    int count = 0;
+    int number = ui->tableWidget->rowCount();
+    //index为true是停止
+    if(index){
+        qDebug()<<"333";
+        if(search!=""){
+            for(int i = 0;i < number;i++){
+                if(ui->tableWidget->item(i,4)->text() != search){
+                    ui->tableWidget->setRowHidden(i,true);
+//                    count--;
+                }else{
+                    ui->tableWidget->setRowHidden(i,false);
+                    count++;
+                }
+            }
+        }else if(search==""){
+            qDebug()<<"444";
+            for(int i = 0;i < number;i++){
+                ui->tableWidget->setRowHidden(i,false);//显示
+                count++;
+            }
+        }
+    }
+
+    double res = 0;
+    if(number != 0)
+        res = (count*100.0)/number;
+    statusBar()->showMessage("Have show (" + QString::number(count) + ") " +QString::number(res,10,2) + "%");
 }

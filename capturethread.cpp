@@ -5,6 +5,8 @@
 CaptureThread::CaptureThread()
 {
     this->isDone = true;
+    this->filter = false;
+    this->filterPro = "";
 }
 bool CaptureThread::setPointer(pcap_t *pointer){
     this->pointer = pointer;
@@ -21,16 +23,42 @@ void CaptureThread::setFlag(){
 void CaptureThread::resetFlag(){
     this->isDone = true;
 }
+void CaptureThread::setFilter(bool index){
+    this->filter = index;
+}
+void CaptureThread::setFilterPro(string filterPro){
+    this->filterPro = filterPro;
+}
 void CaptureThread::run(){
     while(true){
         if(isDone)
             break;
         else{
+
+            if(filter&&filterPro!=""){
+                // 设置过滤器
+                   struct bpf_program filter;
+                   const char *filter_exp = this->filterPro.c_str(); // 只捕获 TCP 包
+                   if (pcap_compile(pointer, &filter, filter_exp, 0, 0) == -1) {
+                       fprintf(stderr, "Error compiling filter: %s\n", pcap_geterr(pointer));
+                       pcap_close(pointer);
+                       return;
+                   }
+
+                   if (pcap_setfilter(pointer, &filter) == -1) {
+                       fprintf(stderr, "Error setting filter: %s\n", pcap_geterr(pointer));
+                       pcap_freecode(&filter);
+                       pcap_close(pointer);
+                       return;
+                   }
+            }
             //获取数据
             int res = pcap_next_ex(pointer,&header,&data);
             //如果没有捕获到就继续捕获
             if(res == 0)
                 continue;
+
+
 
             //时间戳
             local_time_sec = header->ts.tv_sec;

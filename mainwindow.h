@@ -28,6 +28,10 @@ private slots:
 
     void on_tableWidget_cellClicked(int row, int column);
 
+    void on_lineEdit_textChanged(const QString &arg1);
+
+    void on_lineEdit_returnPressed();
+
 public slots:
     void handleMessage(PackageInfo dataI);
 
@@ -42,5 +46,7 @@ private:
     //选中的行
     int selectedRow;
     QString dataPackageText;
+    bool filter;//捕获进行或停止，用于判定捕获前过滤还是捕获后
+    bool index;
 };
 #endif // MAINWINDOW_H

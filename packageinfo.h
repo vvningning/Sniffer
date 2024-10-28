@@ -42,7 +42,7 @@ typedef struct udp_header{
 }udp_header;
 
 //arp
-//2byte type    2byte protocol  1byte ip_len    2byte op_type
+//2byte type    2byte protocol  1byte mac_len 1byte ip_len    2byte op_type
 //6byte source mac 4byte source ip 6byte    des mac 4byte des ip
 typedef struct arp_header{
     unsigned short type;//硬件类型，为1表示以太网mac地址
@@ -196,6 +196,15 @@ public:
     QString getIcmpIden();
     QString getIcmpSeq();
     QString getIcmpData(int size);
+    QString getArpType();
+    QString getArpProtocol();
+    QString getArpMacLen();
+    QString getArpIpLen();
+    QString getArpOpCode();
+    QString getArpSourMacAddr();
+    QString getArpDesMacAddr();
+    QString getArpSourIpAddr();
+    QString getArpDesIpAddr();
 private:
     unsigned int data_length;
     QString timestamp;

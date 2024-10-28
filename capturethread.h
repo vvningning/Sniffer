@@ -3,6 +3,8 @@
 #include <QThread>
 #include "pcap.h"
 #include "packageinfo.h"
+#include <string>
+using namespace std;
 
 
 class CaptureThread:public QThread
@@ -16,6 +18,8 @@ public:
     //打开设备描述符的地址
     bool setPointer(pcap_t *pointer);
     void setFlag();
+    void setFilter(bool index);
+    void setFilterPro(string filterPro);
     void resetFlag();
     //19:00
     int handleEthernerPackage(const unsigned char *data,QString &type);
@@ -29,6 +33,7 @@ public:
     QString handleArpPackage(const unsigned char* data);
     QString handleDnsPackage(const unsigned char* data);
     QString handleIcmpPackage(const unsigned char* data);
+
 
 signals:
     //线程间发送数据
@@ -45,6 +50,8 @@ private:
     struct tm local_time;
     char timeString[16];
     bool isDone;
+    bool filter;
+    string filterPro;
 };
 
 #endif // CAPTURETHREAD_H
