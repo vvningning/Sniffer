@@ -149,7 +149,9 @@ public:
     void setPackageType(int type);
     void setPointer(const unsigned char* package,int size);
     void setInfo(QString info);
+    void setIs6(bool i);
 
+    bool getIs6();
     QString getDataLength();
     QString getTimeStamp();
     QString getPackageType();
@@ -211,6 +213,7 @@ private:
     //eth上层封装的数据包类型
     QString info;
     int package_type;
+    bool is6;
 
 };
 

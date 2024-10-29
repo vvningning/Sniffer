@@ -25,6 +25,7 @@ public:
     int handleEthernerPackage(const unsigned char *data,QString &type);
     int handleIpPackage(const unsigned char* data,int &ipPackage);//ipPackage为实际承载多少报文
     QString handleIpv6Package(const unsigned char* data);
+    int handleIpv6PackageNext(const unsigned char* data,QString &type);
     int handleTcpPackage(const unsigned char* data,QString &info,int ipPackage);
     //udp解析dns
     //udp包含数据长度，不需要ipPackage

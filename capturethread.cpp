@@ -34,6 +34,7 @@ void CaptureThread::run(){
         if(isDone)
             break;
         else{
+            qDebug()<<QString::fromStdString(filterPro);
 
             if(filter&&filterPro!=""){
                 // 设置过滤器
@@ -42,6 +43,8 @@ void CaptureThread::run(){
                    if (pcap_compile(pointer, &filter, filter_exp, 0, 0) == -1) {
                        fprintf(stderr, "Error compiling filter: %s\n", pcap_geterr(pointer));
                        pcap_close(pointer);
+                       qDebug()<<"33333333333333333333333";
+                       qDebug()<<QString::fromStdString(filterPro);
                        return;
                    }
 
@@ -51,7 +54,10 @@ void CaptureThread::run(){
                        pcap_close(pointer);
                        return;
                    }
+
             }
+            qDebug()<<"333333333333333333333334444444444444444";
+            qDebug()<<QString::fromStdString(filterPro);
             //获取数据
             int res = pcap_next_ex(pointer,&header,&data);
             //如果没有捕获到就继续捕获
@@ -77,6 +83,8 @@ void CaptureThread::run(){
                 packageInfo.setInfo(info);
                 packageInfo.setDataLength(len);
                 packageInfo.setTimeStamp(timeString);
+                if(t>=8) packageInfo.setIs6(true);
+                else packageInfo.setIs6(false);
                 packageInfo.setPackageType(t);
                 packageInfo.setPointer(data,len);
                 emit send(packageInfo);
@@ -116,7 +124,8 @@ int CaptureThread::handleEthernerPackage(const unsigned char *data, QString &inf
     if(content_type == 0x86DD){
         //上层封装ipv6
         info = handleIpv6Package(data);
-        return 8;
+        //return 8;
+        return handleIpv6PackageNext(data,info);
     }
     if(content_type == 0x0806){
 //        info = "arp";
@@ -160,9 +169,193 @@ QString CaptureThread::handleIpv6Package(const unsigned char *data){
                                           ip->des_addr.a7,
                                           ip->des_addr.a8);
     res += "ipv6 source addr:"+ sour_addr + " destination addr:"+des_addr;
+//    unsigned char next_header = ip->next_header;
+
+//        // 判断下一层协议
+//        switch (next_header) {
+//            case 6:
+//                res += " | Next Header: TCP";
+//                break;
+//            case 17:
+//                res += " | Next Header: UDP";
+//                break;
+//            case 58:
+//                res += " | Next Header: ICMPv6";
+//                break;
+//            default:
+//                res += " | Next Header: Unknown (" + QString::number(next_header) + ")";
+//                break;
+//        }
+
+//        return res;
     return res;
 }
+int CaptureThread::handleIpv6PackageNext(const unsigned char *data,QString &info){
+    //data指向最开始的数据包，需要跳过mac,即跳过14
+    ipv6_header* ip;
+    ip = (ipv6_header*)(data + 14);
+    QString res = "";
+    QString sour_addr = QString::asprintf("%X:%X:%X:%X:%X:%X:%X:%X",
+                                          ip->sour_addr.a1,
+                                          ip->sour_addr.a2,
+                                          ip->sour_addr.a3,
+                                          ip->sour_addr.a4,
+                                          ip->sour_addr.a5,
+                                          ip->sour_addr.a6,
+                                          ip->sour_addr.a7,
+                                          ip->sour_addr.a8);
+    QString des_addr = QString::asprintf("%X:%X:%X:%X:%X:%X:%X:%X",
+                                          ip->des_addr.a1,
+                                          ip->des_addr.a2,
+                                          ip->des_addr.a3,
+                                          ip->des_addr.a4,
+                                          ip->des_addr.a5,
+                                          ip->des_addr.a6,
+                                          ip->des_addr.a7,
+                                          ip->des_addr.a8);
+    res += "ipv6 source addr:"+ sour_addr + " destination addr:"+des_addr;
+    unsigned char next_header = ip->next_header;
+    if(next_header == 6){
+        res += " | Next Header: TCP";
+        tcp_header * tcp;
+        //跳过mac和ip
+        tcp = (tcp_header*)(data+14+40);
+        unsigned short sour_port = ntohs(tcp->sour_port);
+        unsigned short des_port = ntohs(tcp ->des_port);
+        QString proSend = "";
+        QString proRecei = "";
+        int type = 3;
+        int tcpHeaderLength = (tcp->headLength>>4)*4;
+        //https
+        if(sour_port == 443||des_port == 443){
+            if(sour_port==443) proSend = "(https)";
+            else proRecei = "(https)";
+            unsigned char*ssl=(unsigned char*)(data+14+40+tcpHeaderLength);
+            unsigned char isTls = (*ssl);
+            ssl++;
+            unsigned short* pointer = (unsigned short*)ssl;
+            unsigned short version = ntohs(*pointer);
+            if(isTls>=20&&isTls<=23&&version>=0x0301&&version<=0x0304){
+                type = 6;
+                if(isTls==20){
+                    res+="Change Cipher Spec";//交换密钥
+                }
+                if(isTls==21){
+                    res+="Alert";
+                }
+                if(isTls==22){
+                    res+="Hand shake";
+                    ssl+=4;
+                    unsigned char t = (*ssl);
+                    if(t==1){
+                        res+="Client Hello";
+                    }
+                    if(t==2){
+                        res+="Server Hello";
+                    }
+                }
+                if(isTls==23){
+                    res += "Application Data";
+                }
+            }
+            else type = 7;
+            if(type==7) res += "Continuation Data";
+        }
+        //需要交给应用层处理
+        res += QString::number(sour_port) + proSend+"->"+QString::number(des_port)+proRecei;
+        QString flags = "";
+        //通过位运算获得标志位
+        if(tcp->flags & 0x08) flags += "PSH,";
+        if(tcp->flags & 0x10) flags += "ACK,";
+        if(tcp->flags & 0x02) flags += "SYN,";
+        if(tcp->flags & 0x20) flags += "URG,";
+        if(tcp->flags & 0x01) flags += "FIN,";
+        if(tcp->flags & 0x04) flags += "RST,";
+        if(flags!=""){
+            //去掉最后的逗号
+            flags = flags.left(flags.length()-1);
+            res+= "["+flags+"]";
+        }
+        unsigned int seq = ntohl(tcp->seq);
+        unsigned int ack = ntohl(tcp->ack);
+        unsigned short windowSize = ntohs(tcp->windowSize);
+        res+= " Seq=" + QString::number(seq);
+        res+= "ACK=" + QString::number(ack);
+        res+= "win=" + QString::number(windowSize);
+        info = res;
+        return type+8;
+    }
+    else if(next_header==17){
+        udp_header* udp;
 
+        //跳过mac和ip
+        udp = (udp_header*)(data+14+40);
+        unsigned short sour_port = ntohs(udp->sour_port);
+        unsigned short des_port = ntohs(udp->des_port);
+
+        //dns用53端口
+        if(sour_port==53||des_port == 53) {
+            res += handleDnsPackage(data);
+            info = res;
+            return 5+8;
+        }
+        else{
+            res += QString::number(sour_port) + "->" + QString::number(des_port);
+            unsigned short dataLength = ntohs(udp->dataLength);
+            res += "len = "+QString::number(dataLength);
+            info = res;
+            return 4+8;
+        }
+    }
+    else if(next_header==58){
+        icmp_header* icmp;
+        //icmp被封装在ip里
+
+        icmp = (icmp_header*)(data + 14 + 40);
+        unsigned char type = icmp->type;
+        unsigned char code = icmp->code;
+        QString res="";
+        if(type==0&&code==0){
+            res = "Echo response(ping command response";
+        }
+        else if(type==3){
+            if(code==0){
+                info = "Network unreachable";
+            }
+            else if(code==1){
+                info = "Host unreachable";
+            }
+            else if(code==2){
+                info = "Protocol unreachable";
+            }
+            else if(code==3){
+                info = "Port unreachable";
+            }
+            else if(code==4){
+                info = "Fragmentation is required, but DF is set";
+            }
+            else if(code==5){
+                info = "Source route selection failed";
+            }
+            else if(code==6){
+                info = "Unknown target network";
+            }
+        }
+        else if(type==4&&code==0){
+            res = "Source station suppression [congestion control]";
+        }
+        else if(type==5){
+            res = "Relocation";
+        }
+        else if(type==8&&code==0){
+            res = "Echo request(ping command request";
+        }
+        info = res;
+        return 2+8;
+    }
+    info = res;
+    return 8;
+}
 int CaptureThread::handleTcpPackage(const unsigned char *data, QString &info, int ipPackage){
     tcp_header * tcp;
     //跳过mac和ip

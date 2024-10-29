@@ -11,9 +11,13 @@ PackageInfo::PackageInfo()
     this->timestamp = "";
     this->data_length = 0;
     this->package_type = 0;
+    this->is6 = false;
 }
 void PackageInfo::setInfo(QString info){
     this->info = info;
+}
+void PackageInfo::setIs6(bool i){
+    this->is6 = i;
 }
 void PackageInfo::setPointer(const unsigned char *package,int size){
     //不可以直接赋值，需要显示申请内存
@@ -65,11 +69,31 @@ QString PackageInfo::getPackageType(){
     if(this->package_type == 8){
         return "IPv6";
     }
+    if(this->package_type == 2+8){
+        return "ICMPv6";
+    }
+    if(this->package_type == 3+8){
+        return "TCPv6";
+    }
+    if(this->package_type == 4+8){
+        return "UDPv6";
+    }
+    if(this->package_type == 5+8){
+        return "DNSv6";
+    }
+    if(this->package_type == 6+8){
+        return "TLSv6";
+    }
+    if(this->package_type == 7+8){
+        return "SSLv6";
+    }
     else{
         return "";
     }
 }
-
+bool PackageInfo::getIs6(){
+    return is6;
+}
 QString PackageInfo::getSourMac(){
     ether_header *eth;
     eth = (ether_header*)package;
@@ -234,7 +258,14 @@ QString PackageInfo::getIpChecksum(){
 }
 
 QString PackageInfo::getSourcePort(){
-    tcp_header* tcp = (tcp_header*)(package+14+20);
+    tcp_header* tcp;
+    if(is6) tcp = (tcp_header*)(package+14+40);
+    else{
+        ip_header* ip;
+        ip = (ip_header*)(package + 14);
+        int ip_len = ((ip->versionAndHLength)&0x0F)*4;
+        tcp = (tcp_header*)(package+14+ip_len);
+    }
     int port = ntohs(tcp->sour_port);
     if(port == 443) return "443(https)";
     QString res = QString::number(port);
@@ -242,10 +273,14 @@ QString PackageInfo::getSourcePort(){
 }
 
 QString PackageInfo::getDesPort(){
-    ip_header* ip;
-    ip = (ip_header*)(package + 14);
-    int ip_len = ((ip->versionAndHLength)&0x0F)*4;
-    tcp_header* tcp = (tcp_header*)(package+14+ip_len);
+    tcp_header* tcp;
+    if(is6) tcp = (tcp_header*)(package+14+40);
+    else{
+        ip_header* ip;
+        ip = (ip_header*)(package + 14);
+        int ip_len = ((ip->versionAndHLength)&0x0F)*4;
+        tcp = (tcp_header*)(package+14+ip_len);
+    }
     int port = ntohs(tcp->des_port);
     if(port == 443) return "443(https)";
     QString res = QString::number(port);
@@ -253,92 +288,132 @@ QString PackageInfo::getDesPort(){
 }
 
 QString PackageInfo::getTcpSeq(){
-    ip_header* ip;
-    ip = (ip_header*)(package + 14);
-    int ip_len = ((ip->versionAndHLength)&0x0F)*4;
-    tcp_header* tcp = (tcp_header*)(package+14+ip_len);
+    tcp_header* tcp;
+    if(is6) tcp = (tcp_header*)(package+14+40);
+    else{
+        ip_header* ip;
+        ip = (ip_header*)(package + 14);
+        int ip_len = ((ip->versionAndHLength)&0x0F)*4;
+        tcp = (tcp_header*)(package+14+ip_len);
+    }
     QString res = QString::number(ntohl(tcp->seq));
     return res;
 }
 
 QString PackageInfo::getTcpAck(){
-    ip_header* ip;
-    ip = (ip_header*)(package + 14);
-    int ip_len = ((ip->versionAndHLength)&0x0F)*4;
-    tcp_header* tcp = (tcp_header*)(package+14+ip_len);
+    tcp_header* tcp;
+    if(is6) tcp = (tcp_header*)(package+14+40);
+    else{
+        ip_header* ip;
+        ip = (ip_header*)(package + 14);
+        int ip_len = ((ip->versionAndHLength)&0x0F)*4;
+        tcp = (tcp_header*)(package+14+ip_len);
+    }
     QString res = QString::number(ntohl(tcp->ack));
     return res;
 }
 
 QString PackageInfo::getTcpHeaderLength(){
-    ip_header* ip;
-    ip = (ip_header*)(package + 14);
-    int ip_len = ((ip->versionAndHLength)&0x0F)*4;
-    tcp_header* tcp = (tcp_header*)(package+14+ip_len);
+    tcp_header* tcp;
+    if(is6) tcp = (tcp_header*)(package+14+40);
+    else{
+        ip_header* ip;
+        ip = (ip_header*)(package + 14);
+        int ip_len = ((ip->versionAndHLength)&0x0F)*4;
+        tcp = (tcp_header*)(package+14+ip_len);
+    }
     int length = (tcp->headLength >> 4);
     QString res = QString::number(length*4);
     return res;
 }
 
 QString PackageInfo::getTcpFlags(){
-    ip_header* ip;
-    ip = (ip_header*)(package + 14);
-    int ip_len = ((ip->versionAndHLength)&0x0F)*4;
-    tcp_header* tcp = (tcp_header*)(package+14+ip_len);
+    tcp_header* tcp;
+    if(is6) tcp = (tcp_header*)(package+14+40);
+    else{
+        ip_header* ip;
+        ip = (ip_header*)(package + 14);
+        int ip_len = ((ip->versionAndHLength)&0x0F)*4;
+        tcp = (tcp_header*)(package+14+ip_len);
+    }
     QString res = QString::number(tcp->flags,16);
     return res;
 }
 
 QString PackageInfo::getTcpSyn(){
-    ip_header* ip;
-    ip = (ip_header*)(package + 14);
-    int ip_len = ((ip->versionAndHLength)&0x0F)*4;
-    tcp_header* tcp = (tcp_header*)(package+14+ip_len);
+    tcp_header* tcp;
+    if(is6) tcp = (tcp_header*)(package+14+40);
+    else{
+        ip_header* ip;
+        ip = (ip_header*)(package + 14);
+        int ip_len = ((ip->versionAndHLength)&0x0F)*4;
+        tcp = (tcp_header*)(package+14+ip_len);
+    }
     QString res = QString::number(((tcp->flags) & 0x02) >> 1);
     return res;
 }
 
 QString PackageInfo::getTcpAckFlag(){
-    ip_header* ip;
-    ip = (ip_header*)(package + 14);
-    int ip_len = ((ip->versionAndHLength)&0x0F)*4;
-    tcp_header* tcp = (tcp_header*)(package+14+ip_len);
+    tcp_header* tcp;
+    if(is6) tcp = (tcp_header*)(package+14+40);
+    else{
+        ip_header* ip;
+        ip = (ip_header*)(package + 14);
+        int ip_len = ((ip->versionAndHLength)&0x0F)*4;
+        tcp = (tcp_header*)(package+14+ip_len);
+    }
     QString res = QString::number(((tcp->flags) & 0x10) >> 4);
     return res;
 }
 
 QString PackageInfo::getTcpWindowSize(){
-    ip_header* ip;
-    ip = (ip_header*)(package + 14);
-    int ip_len = ((ip->versionAndHLength)&0x0F)*4;
-    tcp_header* tcp = (tcp_header*)(package+14+ip_len);
+    tcp_header* tcp;
+    if(is6) tcp = (tcp_header*)(package+14+40);
+    else{
+        ip_header* ip;
+        ip = (ip_header*)(package + 14);
+        int ip_len = ((ip->versionAndHLength)&0x0F)*4;
+        tcp = (tcp_header*)(package+14+ip_len);
+    }
     QString res = QString::number(ntohs(tcp->windowSize));
     return res;
 }
 
 QString PackageInfo::getTcpChecksum(){
-    ip_header* ip;
-    ip = (ip_header*)(package + 14);
-    int ip_len = ((ip->versionAndHLength)&0x0F)*4;
-    tcp_header* tcp = (tcp_header*)(package+14+ip_len);
+    tcp_header* tcp;
+    if(is6) tcp = (tcp_header*)(package+14+40);
+    else{
+        ip_header* ip;
+        ip = (ip_header*)(package + 14);
+        int ip_len = ((ip->versionAndHLength)&0x0F)*4;
+        tcp = (tcp_header*)(package+14+ip_len);
+    }
     QString res = QString::number(ntohs(tcp->checksum),16);
     return res;
 }
 
 QString PackageInfo::getTcpUrgentP(){
-    ip_header* ip;
-    ip = (ip_header*)(package + 14);
-    int ip_len = ((ip->versionAndHLength)&0x0F)*4;
-    tcp_header* tcp = (tcp_header*)(package+14+ip_len);
+    tcp_header* tcp;
+    if(is6) tcp = (tcp_header*)(package+14+40);
+    else{
+        ip_header* ip;
+        ip = (ip_header*)(package + 14);
+        int ip_len = ((ip->versionAndHLength)&0x0F)*4;
+        tcp = (tcp_header*)(package+14+ip_len);
+    }
     QString res = QString::number(ntohs(tcp->urgentPointer));
     return res;
 }
 
 QString PackageInfo::getUdpSourPort(){
-    ip_header* ip;
-    ip = (ip_header*)(package + 14);
-    int ip_len = ((ip->versionAndHLength)&0x0F)*4;
-    udp_header* udp = (udp_header*)(package+14+ip_len);
+    udp_header* udp;
+    if(is6) udp = (udp_header*)(package+14+40);
+    else{
+        ip_header* ip;
+        ip = (ip_header*)(package + 14);
+        int ip_len = ((ip->versionAndHLength)&0x0F)*4;
+        udp = (udp_header*)(package+14+ip_len);
+    }
     int port = ntohs(udp->sour_port);
     QString res = QString::number(port);
     if(port == 53) res += " (DNS)";
@@ -346,10 +421,14 @@ QString PackageInfo::getUdpSourPort(){
 }
 
 QString PackageInfo::getUdpDesPort(){
-    ip_header* ip;
-    ip = (ip_header*)(package + 14);
-    int ip_len = ((ip->versionAndHLength)&0x0F)*4;
-    udp_header* udp = (udp_header*)(package+14+ip_len);
+    udp_header* udp;
+    if(is6) udp = (udp_header*)(package+14+40);
+    else{
+        ip_header* ip;
+        ip = (ip_header*)(package + 14);
+        int ip_len = ((ip->versionAndHLength)&0x0F)*4;
+        udp = (udp_header*)(package+14+ip_len);
+    }
     int port = ntohs(udp->des_port);
     QString res = QString::number(port);
     if(port == 53) res += " (DNS)";
@@ -357,82 +436,114 @@ QString PackageInfo::getUdpDesPort(){
 }
 
 QString PackageInfo::getUdpLen(){
-    ip_header* ip;
-    ip = (ip_header*)(package + 14);
-    int ip_len = ((ip->versionAndHLength)&0x0F)*4;
-    udp_header* udp = (udp_header*)(package+14+ip_len);
+    udp_header* udp;
+    if(is6) udp = (udp_header*)(package+14+40);
+    else{
+        ip_header* ip;
+        ip = (ip_header*)(package + 14);
+        int ip_len = ((ip->versionAndHLength)&0x0F)*4;
+        udp = (udp_header*)(package+14+ip_len);
+    }
     QString res = QString::number(ntohs(udp->dataLength));
     return res;
 }
 
 QString PackageInfo::getUdpChecksum(){
-    ip_header* ip;
-    ip = (ip_header*)(package + 14);
-    int ip_len = ((ip->versionAndHLength)&0x0F)*4;
-    udp_header* udp = (udp_header*)(package+14+ip_len);
+    udp_header* udp;
+    if(is6) udp = (udp_header*)(package+14+40);
+    else{
+        ip_header* ip;
+        ip = (ip_header*)(package + 14);
+        int ip_len = ((ip->versionAndHLength)&0x0F)*4;
+        udp = (udp_header*)(package+14+ip_len);
+    }
     QString res = QString::number(ntohs(udp->checksum),16);
     return res;
 }
 
 QString PackageInfo::getIcmpType(){
-    ip_header* ip;
-    ip = (ip_header*)(package + 14);
-    int ip_len = ((ip->versionAndHLength)&0x0F)*4;
-    icmp_header* icmp = (icmp_header*)(package+14+ip_len);
+    icmp_header* icmp;
+    if(is6) icmp = (icmp_header*)(package+14+40);
+    else {
+        ip_header* ip;
+        ip = (ip_header*)(package + 14);
+        int ip_len = ((ip->versionAndHLength)&0x0F)*4;
+        icmp = (icmp_header*)(package+14+ip_len);
+    }
+
     QString res = QString::number(ntohs(icmp->type));
     return res;
 }
 
 QString PackageInfo::getIcmpCode(){
-    ip_header* ip;
-    ip = (ip_header*)(package + 14);
-    int ip_len = ((ip->versionAndHLength)&0x0F)*4;
-    icmp_header* icmp = (icmp_header*)(package+14+ip_len);
+    icmp_header* icmp;
+    if(is6) icmp = (icmp_header*)(package+14+40);
+    else {
+        ip_header* ip;
+        ip = (ip_header*)(package + 14);
+        int ip_len = ((ip->versionAndHLength)&0x0F)*4;
+        icmp = (icmp_header*)(package+14+ip_len);
+    }
     QString res = QString::number(ntohs(icmp->code));
     return res;
 }
 
 QString PackageInfo::getIcmpChecksum(){
-    ip_header* ip;
-    ip = (ip_header*)(package + 14);
-    int ip_len = ((ip->versionAndHLength)&0x0F)*4;
-    icmp_header* icmp = (icmp_header*)(package+14+ip_len);
+    icmp_header* icmp;
+    if(is6) icmp = (icmp_header*)(package+14+40);
+    else {
+        ip_header* ip;
+        ip = (ip_header*)(package + 14);
+        int ip_len = ((ip->versionAndHLength)&0x0F)*4;
+        icmp = (icmp_header*)(package+14+ip_len);
+    }
     QString res = QString::number(ntohs(icmp->checksum),16);
     return res;
 }
 
 QString PackageInfo::getIcmpIden(){
-    ip_header* ip;
-    ip = (ip_header*)(package + 14);
-    int ip_len = ((ip->versionAndHLength)&0x0F)*4;
-    icmp_header* icmp = (icmp_header*)(package+14+ip_len);
+    icmp_header* icmp;
+    if(is6) icmp = (icmp_header*)(package+14+40);
+    else {
+        ip_header* ip;
+        ip = (ip_header*)(package + 14);
+        int ip_len = ((ip->versionAndHLength)&0x0F)*4;
+        icmp = (icmp_header*)(package+14+ip_len);
+    }
     QString res = QString::number(ntohs(icmp->identification));
     return res;
 }
 
 QString PackageInfo::getIcmpSeq(){
-    ip_header* ip;
-    ip = (ip_header*)(package + 14);
-    int ip_len = ((ip->versionAndHLength)&0x0F)*4;
-    icmp_header* icmp = (icmp_header*)(package+14+ip_len);
+    icmp_header* icmp;
+    if(is6) icmp = (icmp_header*)(package+14+40);
+    else {
+        ip_header* ip;
+        ip = (ip_header*)(package + 14);
+        int ip_len = ((ip->versionAndHLength)&0x0F)*4;
+        icmp = (icmp_header*)(package+14+ip_len);
+    }
     QString res = QString::number(ntohs(icmp->seq));
     return res;
 }
 
 QString PackageInfo::getIcmpData(int size){
-    ip_header* ip;
-    ip = (ip_header*)(package + 14);
-    int ip_len = ((ip->versionAndHLength)&0x0F)*4;
-    char* icmp = (char*)(package+14+ip_len+8);
-
+    char* icmp;
+    if(is6) icmp = (char*)(package+14+40);
+    else {
+        ip_header* ip;
+        ip = (ip_header*)(package + 14);
+        int ip_len = ((ip->versionAndHLength)&0x0F)*4;
+        icmp = (char*)(package+14+ip_len);
+    }
     QString res= "";
     for(int i = 0;i < size;i++){
+        qDebug()<<"i:"<<QString::number(i);
         if (isprint(*icmp)) {
              res += (*icmp);
         } else {
             res += '.';
         }
-        res += (*icmp);
         icmp++;
     }
     return res;
