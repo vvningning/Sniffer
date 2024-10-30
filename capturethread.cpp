@@ -309,47 +309,70 @@ int CaptureThread::handleIpv6PackageNext(const unsigned char *data,QString &info
     }
     else if(next_header==58){
         icmp_header* icmp;
-        //icmp被封装在ip里
-
         icmp = (icmp_header*)(data + 14 + 40);
         unsigned char type = icmp->type;
+        qDebug()<<"icmpv6 type"<<type;
         unsigned char code = icmp->code;
         QString res="";
-        if(type==0&&code==0){
-            res = "Echo response(ping command response";
-        }
-        else if(type==3){
+
+        if(type==1){
             if(code==0){
-                res = "Network unreachable";
+                res = "There is no route to the destination";
             }
             else if(code==1){
-                res = "Host unreachable";
-            }
-            else if(code==2){
-                res = "Protocol unreachable";
+                res = "Communication with the target is prohibited by the management policy";
             }
             else if(code==3){
-                res = "Port unreachable";
+                res = "Address unreachable";
             }
             else if(code==4){
-                res = "Fragmentation is required, but DF is set";
-            }
-            else if(code==5){
-                res = "Source route selection failed";
-            }
-            else if(code==6){
-                info = "Unknown target network";
+                res = "Port unreachable";
             }
         }
-        else if(type==4&&code==0){
-            res = "Source station suppression [congestion control]";
+        else if(type==2){
+            if(code==0){
+                res = "too large package";
+            }
         }
-        else if(type==5){
-            res = "Relocation";
+        else if(type==3){
+            res = "time out";
         }
-        else if(type==8&&code==0){
-            res = "Echo request(ping command request";
+        else if(type==128){
+            if(code==0){
+                res = "echo request";
+            }
         }
+        else if(type==129){
+            if(code==0){
+                res = "echo response";
+            }
+        }
+        else if(type==133){
+            if(code==0){
+                res = "Device request message";
+            }
+        }
+        else if(type==134){
+            if(code==0){
+                res = "Device notification message";
+            }
+        }
+        else if(type==135){
+            if(code==0){
+                res = "Neighbor request message";
+            }
+        }
+        else if(type==136){
+            if(code==0){
+                res = "Neighbor notification message";
+            }
+        }
+        else if(type==137){
+            if(code==0){
+                res = "Redirect message";
+            }
+        }
+        else res = "icmpv6";
         info = res;
         return 2+8;
     }
@@ -575,9 +598,9 @@ QString CaptureThread::handleIcmpPackage(const unsigned char *data){
         info = "Relocation";
     }
     else if(type==8&&code==0){
-        info = "Echo request(ping command request";
+        info = "Echo request(ping command request)";
     }
-//    else info = "un handle";
+    else info = "icmp";
     return info;
 }
 

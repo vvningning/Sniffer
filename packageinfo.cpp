@@ -470,8 +470,9 @@ QString PackageInfo::getIcmpType(){
         int ip_len = ((ip->versionAndHLength)&0x0F)*4;
         icmp = (icmp_header*)(package+14+ip_len);
     }
-
-    QString res = QString::number(ntohs(icmp->type));
+//    qDebug()<<"window icmp v6 type1"<<icmp->type;
+    QString res = QString::number(icmp->type);
+//    qDebug()<<"window icmp v6 type2"<<res;
     return res;
 }
 
@@ -484,7 +485,7 @@ QString PackageInfo::getIcmpCode(){
         int ip_len = ((ip->versionAndHLength)&0x0F)*4;
         icmp = (icmp_header*)(package+14+ip_len);
     }
-    QString res = QString::number(ntohs(icmp->code));
+    QString res = QString::number(icmp->code);
     return res;
 }
 
