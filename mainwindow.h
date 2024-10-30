@@ -32,6 +32,8 @@ private slots:
 
     void on_lineEdit_returnPressed();
 
+    void on_tableWidget_customContextMenuRequested(const QPoint &pos);
+
 public slots:
     void handleMessage(PackageInfo dataI);
 

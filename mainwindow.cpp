@@ -9,12 +9,18 @@
 #include <QGuiApplication>
 #include <QScreen>
 #include <string>
+#include <QMessageBox>
+#include <QContextMenuEvent>
+#include <QScrollArea>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
+    //右键table cell弹出菜单
+    ui->tableWidget->setContextMenuPolicy(Qt::CustomContextMenu);
+
     index = false;
     filter = false;
     setWindowIcon(QIcon(":/gkd.png"));
@@ -569,6 +575,7 @@ void MainWindow::showPacket(const unsigned char *data, int len) {
     result += "\n";
        result += "Hex: ";
        for (int i = 0; i < len; i++) {
+           if(i%30==0) result+="\n";
            result += QString::number(data[i], 16).rightJustified(2, '0') + " ";
        }
        result += "\n";
@@ -576,6 +583,7 @@ void MainWindow::showPacket(const unsigned char *data, int len) {
        // 输出 ASCII
        result += "ASCII: ";
        for (int i = 0; i < len; i++) {
+           if(i%60==0) result+="\n";
            if (isprint(data[i])) {
                result += (char)data[i];
            } else {
@@ -646,4 +654,178 @@ void MainWindow::on_lineEdit_returnPressed()
     if(number != 0)
         res = (count*100.0)/number;
     statusBar()->showMessage("Have show (" + QString::number(count) + ") " +QString::number(res,10,2) + "%");
+}
+
+void MainWindow::on_tableWidget_customContextMenuRequested(const QPoint &pos)
+{
+    QMenu menu;
+       QAction *tracing = menu.addAction(tr("TCP流追踪"));
+
+       connect(tracing, &QAction::triggered, [=](){
+           //停止时才可以追踪
+           if(index){
+              QDialog *dialog = new QDialog(this);
+              dialog->setWindowTitle("trace");
+              dialog->setMinimumSize(1000, 800);
+              dialog->setMaximumWidth(1000);
+//              QScrollArea *scrollArea = new QScrollArea(dialog);
+//              scrollArea->setWidgetResizable(true); // 使内容自适应滚动区域大小
+              // 创建滚动区域
+                  QScrollArea *scrollArea = new QScrollArea(dialog);
+                  scrollArea->setWidgetResizable(true); // 使内容自适应滚动区域大小
+
+                  // 创建一个 QWidget 作为滚动区域的内容
+                  QWidget *contentWidget = new QWidget();
+                  QVBoxLayout *layout = new QVBoxLayout(contentWidget);
+//              QVBoxLayout *layout = new QVBoxLayout(dialog);
+
+              int currentRow = ui->tableWidget->currentRow();
+              if (currentRow < 0) {
+                  QMessageBox::warning(this, "Warning", "Please select a row first.");
+                  return;
+              }
+
+                  // 获取当前行的内容
+                  QString ip_type="";
+                  QString sour_ip="";
+                  QString des_ip="";
+                  if(packageInfoVec[currentRow].getIs6()){
+                      sour_ip = packageInfoVec[currentRow].getSourIpv6();
+                      des_ip = packageInfoVec[currentRow].getDesIpv6();
+                  }
+                  else{
+                       sour_ip = packageInfoVec[currentRow].getSourIp();
+                       des_ip = packageInfoVec[currentRow].getDesIp();
+                  }
+
+                  QString sour_port = packageInfoVec[currentRow].getSourcePort();
+                  QString des_port = packageInfoVec[currentRow].getDesPort();
+                  QString b_s_ip="";
+                  QString b_d_ip="";
+                  QString b_s_port="";
+                  QString b_d_port="";
+                  int number = ui->tableWidget->rowCount();
+                  for(int i = 0;i < number;i++){
+                      qDebug()<<"i:"<<i;
+                      if(packageInfoVec[i].getIs6()){
+                          b_s_ip = packageInfoVec[i].getSourIpv6();
+                          b_d_ip = packageInfoVec[i].getDesIpv6();
+                      }
+                      else{
+                           b_s_ip = packageInfoVec[i].getSourIp();
+                           b_d_ip = packageInfoVec[i].getDesIp();
+                      }
+
+                      b_s_port = packageInfoVec[i].getSourcePort();
+                      b_d_port = packageInfoVec[i].getDesPort();
+                      qDebug()<<"sourip "<<sour_ip<<" bsip:"<<b_s_ip<<"sour port"<<sour_port<<"b_s_port"<<b_s_port<<"des ip"<<des_ip<<"bds ip"<<b_d_ip<<"des_port"<<des_port<<"bdport"<<b_d_port;
+                      if(sour_ip==b_s_ip && sour_port==b_s_port && des_ip==b_d_ip && des_port==b_d_port){
+                          qDebug()<<"trace1";
+                          QString l = "";
+                          l+="sour ip: "+b_s_ip + " des ip"+b_d_ip +"\n"+
+                                  "sour port"+b_s_port+" des port"+b_d_port+"\n";
+                          l+="Syn flag:"+packageInfoVec[i].getTcpSyn()+" TCP flag:"+packageInfoVec[i].getTcpAckFlag()+"\n";
+                          l+="seq:"+packageInfoVec[i].getTcpSeq()+" ack:"+packageInfoVec[i].getTcpAck()+"\n";
+
+                          QString result;
+                          // 输出十六进制
+                          result = "";
+                          result += "len:";
+                          int len = packageInfoVec[i].len;
+                          const unsigned char *data = packageInfoVec[i].package;
+                          result += QString::number(packageInfoVec[i].len);
+                          result += "\n";
+                             result += "Hex: ";
+                             for (int i = 0; i < len; i++) {
+                                 if(i%30==0) result+="\n";
+                                 result += QString::number(data[i], 16).rightJustified(2, '0') + " ";
+                             }
+                             result += "\n";
+
+                             // 输出 ASCII
+                             result += "ASCII: ";
+                             for (int i = 0; i < len; i++) {
+                                 if(i%60==0) result+="\n";
+                                 if (isprint(data[i])) {
+                                     result += (char)data[i];
+                                 } else {
+                                     result += '.';
+                                 }
+                             }
+                             result += "\n";
+
+
+                          l+=result;
+
+                          QLabel *label1 = new QLabel(l);
+                          label1->setStyleSheet("QLabel {background-color:rgb(255,192,203);}");
+                          layout->addWidget(label1);
+                          dialog->setLayout(layout);
+                          //dialog->exec(); // 显示对话框
+                      }else if(sour_ip==b_d_ip && sour_port==b_d_port && des_ip==b_s_ip && des_port==b_s_port){
+                          QString l = "";
+                          l+="sour ip: "+b_s_ip + " des ip"+b_d_ip +" sour port"+b_s_port+" des port"+b_d_port+"\n";
+                          l+="Seq flag:"+packageInfoVec[i].getTcpSeq()+" TCP flag:"+packageInfoVec[i].getTcpAckFlag()+"\n";
+                          l+="syn:"+packageInfoVec[i].getTcpSyn()+" ack:"+packageInfoVec[i].getTcpAck()+"\n";
+
+                          QString result;
+                          // 输出十六进制
+                          result = "";
+                          result += "len:";
+                          int len = packageInfoVec[i].len;
+                          const unsigned char *data = packageInfoVec[i].package;
+                          result += QString::number(packageInfoVec[i].len);
+                          result += "\n";
+                             result += "Hex: ";
+                             for (int i = 0; i < len; i++) {
+                                 if(i%30==0) result+="\n";
+                                 result += QString::number(data[i], 16).rightJustified(2, '0') + " ";
+                             }
+                             result += "\n";
+
+                             // 输出 ASCII
+                             result += "ASCII: ";
+                             for (int i = 0; i < len; i++) {
+                                 if(i%60==0) result+="\n";
+                                 if (isprint(data[i])) {
+                                     result += (char)data[i];
+                                 } else {
+                                     result += '.';
+                                 }
+                             }
+                             result += "\n";
+
+
+                          l+=result;
+
+                          QLabel *label1 = new QLabel(l);
+                          label1->setStyleSheet("QLabel {background-color:rgb(192,203,255);}");
+                          layout->addWidget(label1);
+                          dialog->setLayout(layout);
+                          //dialog->exec(); // 显示对话框
+                          qDebug()<<"trace2";
+                      }
+                  }
+
+                  contentWidget->setLayout(layout);
+                  scrollArea->setWidget(contentWidget); // 将内容设置到滚动区域
+
+                  // 设置主布局
+                  QVBoxLayout *dialogLayout = new QVBoxLayout(dialog);
+                  dialogLayout->addWidget(scrollArea);
+                  dialog->setLayout(dialogLayout);
+
+                  dialog->exec(); // 显示对话框
+
+           }
+
+
+              // 在这里实现 TCP 流追踪的逻辑
+//              QString message = QString("Tracking TCP flow:\n%1:%2 -> %3:%4")
+//                                    .arg(src_ip).arg(src_port).arg(dst_ip).arg(dst_port);
+//              QMessageBox::information(this, "TCP流追踪", message);
+       });
+
+
+       menu.exec(QCursor::pos());
 }
