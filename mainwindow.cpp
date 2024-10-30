@@ -106,18 +106,27 @@ MainWindow::MainWindow(QWidget *parent)
                 thread->setPointer(pointer);
                 //如果有过滤器
                 QString pro = ui->lineEdit->text().toUpper();
-                if(pro == "ARP"||pro == "ICMP"||pro == "TCP"||pro == "UDP"||pro == "DNS"||pro == "TLS"||pro == "SSL"||pro == "IPV6"){
+                if(pro == "ARP"||pro == "ICMP"||pro == "ICMPV6"||pro == "TCP"||pro == "TCPV6"||pro == "UDP"||pro == "UDPV6"||pro == "DNS"||pro == "DNSV6"||pro == "TLS"||pro == "SSL"||pro == "TLSV6"||pro == "SSLV6"||pro == "IPV6"||pro == ""){
                     QString search = pro.toLower();
                     qDebug()<<"pro"<<pro;
                     qDebug()<<"sea"<<search;
                     if(pro=="DNS") search = "udp and port 53";
+                    if(pro=="DNSV6") search = "ip6 and udp and port 53";
                     if(pro=="TLS"||pro=="SSL") {
                         search = "tcp port 443";
+                        qDebug()<<"sea3"<<search;
+                    }
+                    if(pro=="TLSV6"||pro=="SSLV6") {
+                        search = "ip6 and tcp port 443";
                         qDebug()<<"sea3"<<search;
                     }
                     if(pro=="IPV6") search = "ip6";
                     if(pro=="TCP") search = "tcp";
                     if(pro=="UDP") search = "udp";
+                    if(pro=="TCPV6") search = "ip6 and tcp";
+                    if(pro=="UDPV6") search = "ip6 and udp";
+                    if(pro=="ICMPV6") search = "icmp6";
+                    if(pro=="ICMP") search = "icmp or icmp6";
 
             //        qDebug()<<"222";
                      qDebug()<<"sea2"<<search;
@@ -600,7 +609,7 @@ void MainWindow::on_lineEdit_textChanged(const QString &arg1)
     pro = arg1.toUpper();
 
 
-    if(pro == "ARP"||pro == "ICMP"||pro == "TCP"||pro == "UDP"||pro == "DNS"||pro == "TLS"||pro == "SSL"||pro == "IPV6"||pro == ""){
+    if(pro == "ARP"||pro == "ICMP"||pro == "ICMPV6"||pro == "TCP"||pro == "TCPV6"||pro == "UDP"||pro == "UDPV6"||pro == "DNS"||pro == "DNSV6"||pro == "TLS"||pro == "SSL"||pro == "TLSV6"||pro == "SSLV6"||pro == "IPV6"||pro == ""){
         ui->lineEdit->setStyleSheet("QLineEdit {background-color:rgb(192,255,203);}");
 //        qDebug()<<"222";
     }else{
@@ -618,7 +627,7 @@ void MainWindow::on_lineEdit_returnPressed()
 
 
 
-    if(pro == "ARP"||pro == "ICMP"||pro == "TCP"||pro == "UDP"||pro == "DNS"||pro == "TLS"||pro == "SSL"||pro == "IPV6"||pro == ""){
+   if(pro == "ARP"||pro == "ICMP"||pro == "ICMPV6"||pro == "TCP"||pro == "TCPV6"||pro == "UDP"||pro == "UDPV6"||pro == "DNS"||pro == "DNSV6"||pro == "TLS"||pro == "SSL"||pro == "TLSV6"||pro == "SSLV6"||pro == "IPV6"||pro == ""){
         ui->lineEdit->setStyleSheet("QLineEdit {background-color:rgb(192,255,203);}");
         search = pro;
 //        qDebug()<<"222";

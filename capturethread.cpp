@@ -320,22 +320,22 @@ int CaptureThread::handleIpv6PackageNext(const unsigned char *data,QString &info
         }
         else if(type==3){
             if(code==0){
-                info = "Network unreachable";
+                res = "Network unreachable";
             }
             else if(code==1){
-                info = "Host unreachable";
+                res = "Host unreachable";
             }
             else if(code==2){
-                info = "Protocol unreachable";
+                res = "Protocol unreachable";
             }
             else if(code==3){
-                info = "Port unreachable";
+                res = "Port unreachable";
             }
             else if(code==4){
-                info = "Fragmentation is required, but DF is set";
+                res = "Fragmentation is required, but DF is set";
             }
             else if(code==5){
-                info = "Source route selection failed";
+                res = "Source route selection failed";
             }
             else if(code==6){
                 info = "Unknown target network";
