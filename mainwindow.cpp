@@ -55,7 +55,7 @@ MainWindow::MainWindow(QWidget *parent)
     //设置行高
     ui->tableWidget->verticalHeader()->setDefaultSectionSize(30);
     //表头
-    QStringList title = {"No.","Time","Source","Destination","Protocol","Length","Tnfo"};
+    QStringList title = {"No.","Time","Source","Destination","Protocol","Length","Info"};
     ui->tableWidget->setHorizontalHeaderLabels(title);
     //设置列宽
     ui->tableWidget->setColumnWidth(0,50);
@@ -733,7 +733,7 @@ void MainWindow::on_tableWidget_customContextMenuRequested(const QPoint &pos)
                           QString l = "";
                           l+="sour ip: "+b_s_ip + " des ip"+b_d_ip +"\n"+
                                   "sour port"+b_s_port+" des port"+b_d_port+"\n";
-                          l+="Syn flag:"+packageInfoVec[i].getTcpSyn()+" TCP flag:"+packageInfoVec[i].getTcpAckFlag()+"\n";
+                          l+="Syn flag:"+packageInfoVec[i].getTcpSyn()+" ACK flag:"+packageInfoVec[i].getTcpAckFlag()+"\n";
                           l+="seq:"+packageInfoVec[i].getTcpSeq()+" ack:"+packageInfoVec[i].getTcpAck()+"\n";
 
                           QString result;
@@ -774,8 +774,8 @@ void MainWindow::on_tableWidget_customContextMenuRequested(const QPoint &pos)
                       }else if(sour_ip==b_d_ip && sour_port==b_d_port && des_ip==b_s_ip && des_port==b_s_port){
                           QString l = "";
                           l+="sour ip: "+b_s_ip + " des ip"+b_d_ip +" sour port"+b_s_port+" des port"+b_d_port+"\n";
-                          l+="Seq flag:"+packageInfoVec[i].getTcpSeq()+" TCP flag:"+packageInfoVec[i].getTcpAckFlag()+"\n";
-                          l+="syn:"+packageInfoVec[i].getTcpSyn()+" ack:"+packageInfoVec[i].getTcpAck()+"\n";
+                          l+="Syn flag:"+packageInfoVec[i].getTcpSyn()+" TCP flag:"+packageInfoVec[i].getTcpAckFlag()+"\n";
+                          l+="seq:"+packageInfoVec[i].getTcpSeq()+" ack:"+packageInfoVec[i].getTcpAck()+"\n";
 
                           QString result;
                           // 输出十六进制
